@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Garage">
+<title>My Garage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --card: #161616;
+  --border: #2a2a2a;
+  --accent: #e8b84b;
+  --accent2: #c9973a;
+  --text: #f0ece4;
+  --text2: #8a8580;
+  --text3: #555;
+  --red: #e05252;
+  --green: #52c97a;
+  --radius: 16px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100dvh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: calc(var(--safe-top) + 14px) 20px 14px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 26px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  flex: 1;
+}
+.back-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s;
+}
+.back-btn:active { background: var(--border); }
+.icon-btn {
+  background: var(--accent);
+  border: none;
+  color: #000;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; flex-shrink: 0;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+.icon-btn:active { background: var(--accent2); }
+
+/* ── CONTENT ── */
+.content {
+  flex: 1;
+  padding: 20px;
+  padding-bottom: calc(var(--safe-bot) + 24px);
+  overflow-y: auto;
+}
+
+/* ── GARAGE GRID ── */
+.garage-grid { display: flex; flex-direction: column; gap: 16px; }
+.car-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+.car-card:active { transform: scale(0.98); }
+.car-card-img {
+  width: 100%; height: 180px;
+  object-fit: cover;
+  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 56px;
+  position: relative;
+}
+.car-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.car-card-img .placeholder { font-size: 56px; }
+.car-card-body { padding: 16px; }
+.car-card-name { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 1px; color: var(--text); }
+.car-card-meta { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+.car-badge {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.car-badge.accent { background: rgba(232,184,75,0.12); border-color: rgba(232,184,75,0.3); color: var(--accent); }
+.car-card-actions {
+  position: absolute; top: 12px; right: 12px;
+  display: flex; gap: 8px;
+}
+.card-action-btn {
+  background: rgba(10,10,10,0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer;
+}
+.card-action-btn.del { color: var(--red); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px; gap: 16px; color: var(--text2); text-align: center;
+}
+.empty-state .icon { font-size: 64px; opacity: 0.4; }
+.empty-state p { font-size: 15px; max-width: 240px; line-height: 1.5; }
+
+/* ── SECTIONS MENU ── */
+.section-menu { display: flex; flex-direction: column; gap: 10px; }
+.section-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.section-item:active { background: var(--bg3); border-color: var(--accent); }
+.section-icon {
+  width: 44px; height: 44px;
+  background: var(--bg3);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.section-label { font-weight: 600; font-size: 16px; }
+.section-sublabel { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.chevron { margin-left: auto; color: var(--text3); font-size: 18px; }
+
+/* ── CAR INFO PANEL ── */
+.car-info-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.car-info-img {
+  width: 100%; height: 160px;
+  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+}
+.car-info-img img { width: 100%; height: 100%; object-fit: cover; }
+.car-info-body { padding: 16px; }
+.car-info-name { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 1.5px; }
+.car-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.car-info-field { background: var(--bg3); border-radius: 10px; padding: 10px 12px; }
+.car-info-field-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+.car-info-field-value { font-size: 14px; font-weight: 500; }
+
+/* ── RECORDS LIST ── */
+.records-list { display: flex; flex-direction: column; gap: 10px; }
+.record-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  position: relative;
+}
+.record-date { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+.record-km { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.record-notes { font-size: 14px; color: var(--text); margin-top: 8px; line-height: 1.5; }
+.record-actions { display: flex; gap: 8px; margin-top: 10px; }
+.record-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 12px; cursor: pointer;
+  font-family: inherit;
+}
+.record-btn.del { color: var(--red); border-color: rgba(224,82,82,0.3); }
+.record-tag {
+  display: inline-block;
+  background: rgba(82,201,122,0.12);
+  border: 1px solid rgba(82,201,122,0.3);
+  color: var(--green);
+  padding: 2px 8px; border-radius: 5px;
+  font-size: 11px; font-weight: 600; margin-top: 6px;
+}
+.record-tag.winter { background: rgba(82,148,201,0.12); border-color: rgba(82,148,201,0.3); color: #5294c9; }
+
+/* ── INFO SECTION (oil, tires, wipers) ── */
+.info-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.info-section-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px; letter-spacing: 1px;
+  color: var(--accent); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px; justify-content: space-between;
+}
+.info-edit-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 4px 12px; border-radius: 7px;
+  font-size: 12px; cursor: pointer;
+  font-family: inherit; font-weight: 500;
+}
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-field { background: var(--bg3); border-radius: 10px; padding: 10px 12px; }
+.info-field.full { grid-column: 1/-1; }
+.info-field-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+.info-field-value { font-size: 13px; font-weight: 500; }
+
+/* ── MODAL / SHEET ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7);
+  display: none; align-items: flex-end;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+.modal-sheet {
+  background: var(--bg2);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 0 0 calc(var(--safe-bot) + 20px);
+  animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+.modal-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px; letter-spacing: 1.5px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 500; }
+.form-input, .form-textarea, .form-select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent); }
+.form-textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+.form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a8580' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-actions { display: flex; gap: 10px; padding: 0 20px; }
+.btn-primary {
+  flex: 1; background: var(--accent); color: #000;
+  border: none; padding: 14px; border-radius: 12px;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: background 0.15s;
+}
+.btn-primary:active { background: var(--accent2); }
+.btn-secondary {
+  background: var(--bg3); color: var(--text2);
+  border: 1px solid var(--border); padding: 14px 20px;
+  border-radius: 12px; font-size: 16px; cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  cursor: pointer; text-align: center;
+  position: relative; overflow: hidden;
+}
+.photo-upload input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.photo-upload-icon { font-size: 32px; }
+.photo-upload-label { font-size: 14px; color: var(--text2); }
+.photo-preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.photo-preview-item { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; }
+.photo-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.photo-preview-del {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,0.7); color: #fff;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer; border: none;
+}
+
+/* ── SECTION HEADER ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.section-header-title { font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 1px; color: var(--text2); }
+.add-record-btn {
+  background: rgba(232,184,75,0.12);
+  border: 1px solid rgba(232,184,75,0.3);
+  color: var(--accent);
+  padding: 7px 14px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── EXPENSES RECORD ── */
+.record-price { font-size: 18px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.record-name { font-size: 15px; font-weight: 600; margin-top: 6px; }
+
+/* ── ACCIDENT PHOTOS ── */
+.accident-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.accident-photo { aspect-ratio: 1; border-radius: 8px; overflow: hidden; cursor: pointer; }
+.accident-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(var(--safe-bot) + 20px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 500; z-index: 999;
+  opacity: 0; transition: all 0.25s; pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── LIGHTBOX ── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.95);
+  display: none; align-items: center; justify-content: center;
+}
+.lightbox.active { display: flex; }
+.lightbox img { max-width: 100%; max-height: 100dvh; object-fit: contain; }
+.lightbox-close {
+  position: absolute; top: calc(var(--safe-top) + 16px); right: 16px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); width: 38px; height: 38px;
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; border: none;
+}
+
+/* ── MILEAGE TOTAL ── */
+.mileage-total {
+  background: rgba(232,184,75,0.08);
+  border: 1px solid rgba(232,184,75,0.2);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 13px; color: var(--text2);
+  margin-bottom: 4px;
+}
+.mileage-total span { color: var(--accent); font-weight: 700; font-size: 15px; }
+
+/* ── COLOR SWATCH ── */
+.color-swatch {
+  display: inline-block; width: 12px; height: 12px;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+  vertical-align: middle; margin-right: 5px;
+}
+
+/* ── SYNC BUTTON ── */
+.sync-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.sync-btn:active { background: var(--border); color: var(--accent); }
+
+/* ── IMPORT/EXPORT MODAL ── */
+.io-option {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative; overflow: hidden;
+}
+.io-option:active { background: var(--card); border-color: var(--accent); }
+.io-option-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+}
+.io-option-icon.export { background: rgba(232,184,75,0.12); }
+.io-option-icon.import { background: rgba(82,201,122,0.12); }
+.io-option-icon.merge  { background: rgba(82,148,201,0.12); }
+.io-option-text { flex: 1; }
+.io-option-label { font-size: 16px; font-weight: 600; }
+.io-option-sub   { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+.io-option-arrow { color: var(--text3); font-size: 20px; }
+
+.io-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text3); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+}
+.io-divider::before, .io-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.io-stats {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;
+}
+.io-stat-val { font-family: 'Bebas Neue', cursive; font-size: 22px; color: var(--accent); letter-spacing: 1px; }
+.io-stat-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 1px; }
+
+.import-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 32px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  cursor: pointer; text-align: center; position: relative; overflow: hidden;
+  transition: border-color 0.2s;
+}
+.import-drop-zone.drag-over { border-color: var(--accent); background: rgba(232,184,75,0.05); }
+.import-drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.import-drop-icon { font-size: 40px; }
+.import-drop-label { font-size: 15px; font-weight: 500; }
+.import-drop-sub   { font-size: 12px; color: var(--text2); }
+
+.import-preview {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.import-preview-title { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+.import-preview-list  { font-size: 13px; color: var(--text2); line-height: 1.8; }
+
+.merge-warning {
+  background: rgba(232,184,75,0.08); border: 1px solid rgba(232,184,75,0.25);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 12px; color: var(--text2); line-height: 1.5;
+}
+.merge-warning strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- SCREEN: GARAGE (home) -->
+<div class="screen active" id="screen-garage">
+  <div class="topbar">
+    <div class="topbar-title">🚗 My Garage</div>
+    <button class="sync-btn" onclick="openIOModal()" title="Import / Export">⇅</button>
+    <button class="icon-btn" onclick="openAddCarModal()">+</button>
+  </div>
+  <div class="content">
+    <div class="garage-grid" id="garage-grid"></div>
+  </div>
+</div>
+
+<!-- SCREEN: CAR DETAIL -->
+<div class="screen" id="screen-car">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-garage')">‹</button>
+    <div class="topbar-title" id="car-screen-title">Car</div>
+    <button class="icon-btn" onclick="openEditCarModal()">✎</button>
+  </div>
+  <div class="content">
+    <div class="car-info-panel" id="car-info-panel"></div>
+    <div class="section-menu" id="car-sections"></div>
+  </div>
+</div>
+
+<!-- SCREEN: OIL CHANGES -->
+<div class="screen" id="screen-oil">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">🛢 Oil Changes</div>
+    <button class="icon-btn" onclick="openRecordModal('oil')">+</button>
+  </div>
+  <div class="content" id="screen-oil-content"></div>
+</div>
+
+<!-- SCREEN: TIRES -->
+<div class="screen" id="screen-tires">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">🔄 Tires</div>
+    <button class="icon-btn" onclick="openRecordModal('tires')">+</button>
+  </div>
+  <div class="content" id="screen-tires-content"></div>
+</div>
+
+<!-- SCREEN: WIPERS -->
+<div class="screen" id="screen-wipers">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">🌧 Wipers</div>
+    <button class="icon-btn" onclick="openRecordModal('wipers')">+</button>
+  </div>
+  <div class="content" id="screen-wipers-content"></div>
+</div>
+
+<!-- SCREEN: REPAIRS -->
+<div class="screen" id="screen-repairs">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">🔧 Repairs</div>
+    <button class="icon-btn" onclick="openRecordModal('repairs')">+</button>
+  </div>
+  <div class="content" id="screen-repairs-content"></div>
+</div>
+
+<!-- SCREEN: PARTS -->
+<div class="screen" id="screen-parts">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">⚙️ Parts</div>
+    <button class="icon-btn" onclick="openRecordModal('parts')">+</button>
+  </div>
+  <div class="content" id="screen-parts-content"></div>
+</div>
+
+<!-- SCREEN: EXPENSES -->
+<div class="screen" id="screen-expenses">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">💳 Expenses</div>
+    <button class="icon-btn" onclick="openRecordModal('expenses')">+</button>
+  </div>
+  <div class="content" id="screen-expenses-content"></div>
+</div>
+
+<!-- SCREEN: ACCIDENTS -->
+<div class="screen" id="screen-accidents">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">🚨 Accidents</div>
+    <button class="icon-btn" onclick="openRecordModal('accidents')">+</button>
+  </div>
+  <div class="content" id="screen-accidents-content"></div>
+</div>
+
+<!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
+
+<!-- ADD/EDIT CAR MODAL -->
+<div class="modal-overlay" id="modal-car">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-car-title">Add Vehicle</div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Photo</label>
+        <div class="photo-upload" id="car-photo-upload-area">
+          <input type="file" accept="image/*" id="car-photo-input" onchange="handleCarPhoto(this)">
+          <div class="photo-upload-icon">📷</div>
+          <div class="photo-upload-label">Tap to add photo</div>
+        </div>
+        <div id="car-photo-preview" style="display:none; margin-top:8px;">
+          <div style="position:relative; width:100%; height:140px; border-radius:10px; overflow:hidden;">
+            <img id="car-photo-preview-img" style="width:100%;height:100%;object-fit:cover;">
+            <button onclick="removeCarPhoto()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;border:none;width:28px;height:28px;border-radius:50%;font-size:15px;cursor:pointer;">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Year</label>
+          <input class="form-input" type="number" id="car-year" placeholder="2020" min="1900" max="2030">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Color</label>
+          <input class="form-input" type="text" id="car-color" placeholder="Black">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Make & Model</label>
+        <input class="form-input" type="text" id="car-model" placeholder="Toyota Camry">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">License Plate</label>
+          <input class="form-input" type="text" id="car-plate" placeholder="ABC 1234" style="text-transform:uppercase;">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Engine (L)</label>
+          <input class="form-input" type="text" id="car-engine" placeholder="2.0">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">VIN Number</label>
+        <input class="form-input" type="text" id="car-vin" placeholder="1HGBH41JXMN109186" style="text-transform:uppercase; font-size:13px;">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="car-notes" placeholder="Additional notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-car')">Cancel</button>
+      <button class="btn-primary" onclick="saveCar()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- OIL INFO MODAL -->
+<div class="modal-overlay" id="modal-oil-info">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Oil Change Info</div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Oil Type</label>
+          <input class="form-input" type="text" id="oil-type" placeholder="5W-30 Synthetic">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Volume (L)</label>
+          <input class="form-input" type="text" id="oil-volume" placeholder="4.5">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Drain Plug Size</label>
+        <input class="form-input" type="text" id="oil-plug" placeholder="14mm">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="oil-info-notes" placeholder="Filter type, torque specs..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-oil-info')">Cancel</button>
+      <button class="btn-primary" onclick="saveOilInfo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIRES INFO MODAL -->
+<div class="modal-overlay" id="modal-tires-info">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="tires-info-modal-title">Tire Info</div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label class="form-label">Tire Size</label>
+        <input class="form-input" type="text" id="tire-size" placeholder="225/45R17">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Brand</label>
+        <input class="form-input" type="text" id="tire-brand" placeholder="Michelin">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Purchase Date</label>
+          <input class="form-input" type="date" id="tire-purchase-date">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Purchase Price</label>
+          <input class="form-input" type="number" id="tire-purchase-price" placeholder="800">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="tire-info-notes" placeholder="Store name, season..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-tires-info')">Cancel</button>
+      <button class="btn-primary" onclick="saveTireInfo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIPERS INFO MODAL -->
+<div class="modal-overlay" id="modal-wipers-info">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Wiper Blade Sizes</div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Driver (mm)</label>
+          <input class="form-input" type="text" id="wiper-driver" placeholder="600mm">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Passenger (mm)</label>
+          <input class="form-input" type="text" id="wiper-passenger" placeholder="400mm">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Rear (mm)</label>
+        <input class="form-input" type="text" id="wiper-rear" placeholder="300mm">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-wipers-info')">Cancel</button>
+      <button class="btn-primary" onclick="saveWipersInfo()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECORD MODAL (dynamic) -->
+<div class="modal-overlay" id="modal-record">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-record-title">Add Record</div>
+    <div class="modal-body" id="modal-record-body"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-record')">Cancel</button>
+      <button class="btn-primary" onclick="saveRecord()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT / EXPORT MODAL -->
+<div class="modal-overlay" id="modal-io">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Data Transfer</div>
+    <div class="modal-body" id="modal-io-body">
+      <!-- rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT CONFIRM MODAL -->
+<div class="modal-overlay" id="modal-import-confirm">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="import-confirm-title">Import Data</div>
+    <div class="modal-body" id="modal-import-confirm-body"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-import-confirm')">Cancel</button>
+      <button class="btn-primary" id="import-confirm-btn">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA LAYER
+// ══════════════════════════════════════════════════════════════
+let db = JSON.parse(localStorage.getItem('garage_db') || '{"cars":[]}');
+let currentCarId = null;
+let editingRecordId = null;
+let currentSection = null;
+let editingTireType = null;
+let tempCarPhoto = null;
+let tempAccidentPhotos = [];
+
+function save() { localStorage.setItem('garage_db', JSON.stringify(db)); }
+
+function getCar() { return db.cars.find(c => c.id === currentCarId); }
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goBack(screenId) {
+  showScreen(screenId);
+  if (screenId === 'screen-car') renderCarScreen();
+  if (screenId === 'screen-garage') renderGarage();
+}
+
+// ══════════════════════════════════════════════════════════════
+// GARAGE SCREEN
+// ══════════════════════════════════════════════════════════════
+function renderGarage() {
+  const grid = document.getElementById('garage-grid');
+  if (!db.cars.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="icon">🏎️</div>
+      <p>Your garage is empty. Add your first vehicle!</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = db.cars.map(car => `
+    <div class="car-card" onclick="openCar('${car.id}')">
+      <div class="car-card-img">
+        ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<span class="placeholder">🚗</span>`}
+      </div>
+      <div class="car-card-actions">
+        <div class="card-action-btn del" onclick="event.stopPropagation(); deleteCar('${car.id}')">🗑</div>
+      </div>
+      <div class="car-card-body">
+        <div class="car-card-name">${car.year ? car.year + ' ' : ''}${car.model || 'Unknown'}</div>
+        <div class="car-card-meta">
+          ${car.plate ? `<span class="car-badge accent">${car.plate.toUpperCase()}</span>` : ''}
+          ${car.color ? `<span class="car-badge"><span class="color-swatch" style="background:${car.color.toLowerCase()}"></span>${car.color}</span>` : ''}
+          ${car.engine ? `<span class="car-badge">${car.engine}L</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteCar(id) {
+  if (!confirm('Delete this vehicle and all its records?')) return;
+  db.cars = db.cars.filter(c => c.id !== id);
+  save(); renderGarage(); showToast('Vehicle deleted');
+}
+
+// ══════════════════════════════════════════════════════════════
+// CAR SCREEN
+// ══════════════════════════════════════════════════════════════
+function openCar(id) {
+  currentCarId = id;
+  renderCarScreen();
+  showScreen('screen-car');
+}
+
+function renderCarScreen() {
+  const car = getCar(); if (!car) return;
+  document.getElementById('car-screen-title').textContent = car.model || 'Vehicle';
+
+  document.getElementById('car-info-panel').innerHTML = `
+    <div class="car-info-img">
+      ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<div style="font-size:64px;">🚗</div>`}
+    </div>
+    <div class="car-info-body">
+      <div class="car-info-name">${car.year ? car.year + ' ' : ''}${car.model || 'Vehicle'}</div>
+      <div class="car-info-grid">
+        ${car.plate ? `<div class="car-info-field"><div class="car-info-field-label">License Plate</div><div class="car-info-field-value">${car.plate.toUpperCase()}</div></div>` : ''}
+        ${car.color ? `<div class="car-info-field"><div class="car-info-field-label">Color</div><div class="car-info-field-value"><span class="color-swatch" style="background:${car.color.toLowerCase()}"></span>${car.color}</div></div>` : ''}
+        ${car.engine ? `<div class="car-info-field"><div class="car-info-field-label">Engine</div><div class="car-info-field-value">${car.engine}L</div></div>` : ''}
+        ${car.vin ? `<div class="car-info-field" style="grid-column:1/-1"><div class="car-info-field-label">VIN</div><div class="car-info-field-value" style="font-size:12px;letter-spacing:0.5px;">${car.vin.toUpperCase()}</div></div>` : ''}
+        ${car.notes ? `<div class="car-info-field" style="grid-column:1/-1"><div class="car-info-field-label">Notes</div><div class="car-info-field-value">${car.notes}</div></div>` : ''}
+      </div>
+    </div>
+  `;
+
+  const sections = [
+    {id:'oil', icon:'🛢', label:'Oil Changes', sub:'Engine oil service history'},
+    {id:'tires', icon:'🔄', label:'Tires', sub:'Tire size & change history'},
+    {id:'wipers', icon:'🌧', label:'Wipers', sub:'Wiper blade sizes & replacements'},
+    {id:'repairs', icon:'🔧', label:'Repairs', sub:'Maintenance & repair log'},
+    {id:'parts', icon:'⚙️', label:'Parts', sub:'Parts purchased & installed'},
+    {id:'expenses', icon:'💳', label:'Expenses', sub:'Fuel, insurance, etc.'},
+    {id:'accidents', icon:'🚨', label:'Accidents', sub:'Incident & damage records'},
+  ];
+
+  document.getElementById('car-sections').innerHTML = sections.map(s => `
+    <div class="section-item" onclick="openSection('${s.id}')">
+      <div class="section-icon">${s.icon}</div>
+      <div>
+        <div class="section-label">${s.label}</div>
+        <div class="section-sublabel">${s.sub}</div>
+      </div>
+      <div class="chevron">›</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTIONS
+// ══════════════════════════════════════════════════════════════
+function openSection(section) {
+  currentSection = section;
+  showScreen('screen-' + section);
+  renderSection(section);
+}
+
+function renderSection(section) {
+  const car = getCar(); if (!car) return;
+  if (!car.records) car.records = {};
+  if (!car.records[section]) car.records[section] = [];
+
+  const records = car.records[section];
+
+  if (section === 'oil') renderOilSection(car, records);
+  else if (section === 'tires') renderTiresSection(car, records);
+  else if (section === 'wipers') renderWipersSection(car, records);
+  else if (section === 'repairs') renderSimpleRecords('screen-repairs-content', records, 'repairs', 'No repair records yet.');
+  else if (section === 'parts') renderPartsRecords(records);
+  else if (section === 'expenses') renderExpensesRecords(records);
+  else if (section === 'accidents') renderAccidentRecords(records);
+}
+
+// — OIL —
+function renderOilSection(car, records) {
+  const info = car.oilInfo || {};
+  const el = document.getElementById('screen-oil-content');
+  el.innerHTML = `
+    <div class="info-section">
+      <div class="info-section-title">
+        General Info
+        <button class="info-edit-btn" onclick="openOilInfoModal()">Edit</button>
+      </div>
+      <div class="info-grid">
+        <div class="info-field"><div class="info-field-label">Oil Type</div><div class="info-field-value">${info.type || '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Volume</div><div class="info-field-value">${info.volume ? info.volume+'L' : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Drain Plug</div><div class="info-field-value">${info.plug || '—'}</div></div>
+        ${info.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${info.notes}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-header-title">History (${records.length})</div>
+    </div>
+    ${records.length ? records.slice().reverse().map(r => `
+      <div class="record-card" style="margin-bottom:10px;">
+        <div class="record-date">${formatDate(r.date)}</div>
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+        <div class="record-actions">
+          <button class="record-btn" onclick="editRecord('oil','${r.id}')">Edit</button>
+          <button class="record-btn del" onclick="deleteRecord('oil','${r.id}')">Delete</button>
+        </div>
+      </div>`).join('') :
+      `<div class="empty-state" style="padding:30px 0;"><div class="icon" style="font-size:36px;">🛢</div><p>No oil change records yet</p></div>`
+    }`;
+}
+
+function openOilInfoModal() {
+  const car = getCar(); const info = car.oilInfo || {};
+  document.getElementById('oil-type').value = info.type || '';
+  document.getElementById('oil-volume').value = info.volume || '';
+  document.getElementById('oil-plug').value = info.plug || '';
+  document.getElementById('oil-info-notes').value = info.notes || '';
+  openModal('modal-oil-info');
+}
+
+function saveOilInfo() {
+  const car = getCar();
+  car.oilInfo = {
+    type: document.getElementById('oil-type').value,
+    volume: document.getElementById('oil-volume').value,
+    plug: document.getElementById('oil-plug').value,
+    notes: document.getElementById('oil-info-notes').value,
+  };
+  save(); closeModal('modal-oil-info'); renderSection('oil'); showToast('Oil info saved');
+}
+
+// — TIRES —
+function renderTiresSection(car, records) {
+  const wi = car.tiresWinter || {}; const al = car.tiresAllSeason || {};
+  const winterKm = records.filter(r=>r.tireType==='winter').reduce((s,r)=>s+(Number(r.km)||0),0);
+  const allKm = records.filter(r=>r.tireType==='allseason').reduce((s,r)=>s+(Number(r.km)||0),0);
+  const el = document.getElementById('screen-tires-content');
+  el.innerHTML = `
+    <div class="info-section">
+      <div class="info-section-title">❄️ Winter Tires <button class="info-edit-btn" onclick="openTireInfoModal('winter')">Edit</button></div>
+      <div class="info-grid">
+        <div class="info-field"><div class="info-field-label">Size</div><div class="info-field-value">${wi.size||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Brand</div><div class="info-field-value">${wi.brand||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Purchased</div><div class="info-field-value">${wi.purchaseDate ? formatDate(wi.purchaseDate) : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Price</div><div class="info-field-value">${wi.price ? '$'+wi.price : '—'}</div></div>
+        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${winterKm.toLocaleString()} km</div></div>
+        ${wi.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${wi.notes}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="info-section">
+      <div class="info-section-title">☀️ All-Season Tires <button class="info-edit-btn" onclick="openTireInfoModal('allseason')">Edit</button></div>
+      <div class="info-grid">
+        <div class="info-field"><div class="info-field-label">Size</div><div class="info-field-value">${al.size||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Brand</div><div class="info-field-value">${al.brand||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Purchased</div><div class="info-field-value">${al.purchaseDate ? formatDate(al.purchaseDate) : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Price</div><div class="info-field-value">${al.price ? '$'+al.price : '—'}</div></div>
+        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${allKm.toLocaleString()} km</div></div>
+        ${al.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${al.notes}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-header-title">Swap History (${records.length})</div>
+    </div>
+    ${records.length ? records.slice().reverse().map(r => `
+      <div class="record-card" style="margin-bottom:10px;">
+        <div class="record-date">${formatDate(r.date)}</div>
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        <div class="${r.tireType==='winter' ? 'record-tag winter' : 'record-tag'}">${r.tireType==='winter'?'❄️ Winter':'☀️ All-Season'}</div>
+        ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+        <div class="record-actions">
+          <button class="record-btn" onclick="editRecord('tires','${r.id}')">Edit</button>
+          <button class="record-btn del" onclick="deleteRecord('tires','${r.id}')">Delete</button>
+        </div>
+      </div>`).join('') :
+      `<div class="empty-state" style="padding:30px 0;"><div class="icon" style="font-size:36px;">🔄</div><p>No tire swap records yet</p></div>`
+    }`;
+}
+
+function openTireInfoModal(type) {
+  editingTireType = type;
+  const car = getCar();
+  const info = type === 'winter' ? (car.tiresWinter||{}) : (car.tiresAllSeason||{});
+  document.getElementById('tires-info-modal-title').textContent = type === 'winter' ? '❄️ Winter Tire Info' : '☀️ All-Season Tire Info';
+  document.getElementById('tire-size').value = info.size || '';
+  document.getElementById('tire-brand').value = info.brand || '';
+  document.getElementById('tire-purchase-date').value = info.purchaseDate || '';
+  document.getElementById('tire-purchase-price').value = info.price || '';
+  document.getElementById('tire-info-notes').value = info.notes || '';
+  openModal('modal-tires-info');
+}
+
+function saveTireInfo() {
+  const car = getCar();
+  const data = {
+    size: document.getElementById('tire-size').value,
+    brand: document.getElementById('tire-brand').value,
+    purchaseDate: document.getElementById('tire-purchase-date').value,
+    price: document.getElementById('tire-purchase-price').value,
+    notes: document.getElementById('tire-info-notes').value,
+  };
+  if (editingTireType === 'winter') car.tiresWinter = data;
+  else car.tiresAllSeason = data;
+  save(); closeModal('modal-tires-info'); renderSection('tires'); showToast('Tire info saved');
+}
+
+// — WIPERS —
+function renderWipersSection(car, records) {
+  const info = car.wipersInfo || {};
+  const el = document.getElementById('screen-wipers-content');
+  el.innerHTML = `
+    <div class="info-section">
+      <div class="info-section-title">
+        Blade Sizes
+        <button class="info-edit-btn" onclick="openWipersInfoModal()">Edit</button>
+      </div>
+      <div class="info-grid">
+        <div class="info-field"><div class="info-field-label">Driver</div><div class="info-field-value">${info.driver||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Passenger</div><div class="info-field-value">${info.passenger||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Rear</div><div class="info-field-value">${info.rear||'—'}</div></div>
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-header-title">Replacement History (${records.length})</div>
+    </div>
+    ${records.length ? records.slice().reverse().map(r => `
+      <div class="record-card" style="margin-bottom:10px;">
+        <div class="record-date">${formatDate(r.date)}</div>
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+        <div class="record-actions">
+          <button class="record-btn" onclick="editRecord('wipers','${r.id}')">Edit</button>
+          <button class="record-btn del" onclick="deleteRecord('wipers','${r.id}')">Delete</button>
+        </div>
+      </div>`).join('') :
+      `<div class="empty-state" style="padding:30px 0;"><div class="icon" style="font-size:36px;">🌧</div><p>No wiper replacement records yet</p></div>`
+    }`;
+}
+
+function openWipersInfoModal() {
+  const car = getCar(); const info = car.wipersInfo || {};
+  document.getElementById('wiper-driver').value = info.driver || '';
+  document.getElementById('wiper-passenger').value = info.passenger || '';
+  document.getElementById('wiper-rear').value = info.rear || '';
+  openModal('modal-wipers-info');
+}
+
+function saveWipersInfo() {
+  const car = getCar();
+  car.wipersInfo = {
+    driver: document.getElementById('wiper-driver').value,
+    passenger: document.getElementById('wiper-passenger').value,
+    rear: document.getElementById('wiper-rear').value,
+  };
+  save(); closeModal('modal-wipers-info'); renderSection('wipers'); showToast('Wiper info saved');
+}
+
+// — SIMPLE SECTIONS —
+function renderSimpleRecords(elId, records, section, emptyMsg) {
+  const el = document.getElementById(elId);
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">📋</div><p>${emptyMsg}</p></div>`;
+    return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => `
+    <div class="record-card" style="margin-bottom:10px;">
+      <div class="record-date">${formatDate(r.date)}</div>
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+      <div class="record-actions">
+        <button class="record-btn" onclick="editRecord('${section}','${r.id}')">Edit</button>
+        <button class="record-btn del" onclick="deleteRecord('${section}','${r.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+// — PARTS —
+function renderPartsRecords(records) {
+  const el = document.getElementById('screen-parts-content');
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">⚙️</div><p>No parts records yet</p></div>`; return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => `
+    <div class="record-card" style="margin-bottom:10px;">
+      <div class="record-date">${formatDate(r.date)}</div>
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
+      ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
+      ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+      <div class="record-actions">
+        <button class="record-btn" onclick="editRecord('parts','${r.id}')">Edit</button>
+        <button class="record-btn del" onclick="deleteRecord('parts','${r.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+// — EXPENSES —
+function renderExpensesRecords(records) {
+  const el = document.getElementById('screen-expenses-content');
+  const total = records.reduce((s,r)=>s+(Number(r.price)||0),0);
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">💳</div><p>No expense records yet</p></div>`; return;
+  }
+  el.innerHTML = `
+    <div class="mileage-total">Total expenses: <span>$${total.toLocaleString()}</span></div>
+    ${records.slice().reverse().map(r => `
+    <div class="record-card" style="margin-bottom:10px;">
+      <div class="record-date">${formatDate(r.date)}</div>
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
+      ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
+      ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+      <div class="record-actions">
+        <button class="record-btn" onclick="editRecord('expenses','${r.id}')">Edit</button>
+        <button class="record-btn del" onclick="deleteRecord('expenses','${r.id}')">Delete</button>
+      </div>
+    </div>`).join('')}`;
+}
+
+// — ACCIDENTS —
+function renderAccidentRecords(records) {
+  const el = document.getElementById('screen-accidents-content');
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">🚨</div><p>No accident records yet</p></div>`; return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => `
+    <div class="record-card" style="margin-bottom:10px;">
+      <div class="record-date">${formatDate(r.date)}</div>
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+      ${r.photos && r.photos.length ? `
+        <div class="accident-photos">
+          ${r.photos.map((p,i) => `<div class="accident-photo" onclick="openLightbox('${p}')"><img src="${p}" alt="photo ${i+1}"></div>`).join('')}
+        </div>` : ''}
+      <div class="record-actions">
+        <button class="record-btn" onclick="editRecord('accidents','${r.id}')">Edit</button>
+        <button class="record-btn del" onclick="deleteRecord('accidents','${r.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// RECORD MODAL
+// ══════════════════════════════════════════════════════════════
+const sectionTitles = {
+  oil: '🛢 Oil Change', tires: '🔄 Tire Swap', wipers: '🌧 Wiper Replacement',
+  repairs: '🔧 Repair', parts: '⚙️ Part', expenses: '💳 Expense', accidents: '🚨 Accident'
+};
+
+function openRecordModal(section, recordId) {
+  currentSection = section;
+  editingRecordId = recordId || null;
+  tempAccidentPhotos = [];
+
+  const car = getCar();
+  const rec = recordId ? (car.records[section]||[]).find(r=>r.id===recordId) : null;
+
+  document.getElementById('modal-record-title').textContent = (rec ? 'Edit ' : 'Add ') + sectionTitles[section];
+
+  let body = `
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="rec-date" value="${rec?.date || today()}">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Mileage (km)</label>
+        <input class="form-input" type="number" id="rec-km" placeholder="50000" value="${rec?.km||''}">
+      </div>
+    </div>`;
+
+  if (section === 'tires') {
+    body += `<div class="form-field">
+      <label class="form-label">Tire Type</label>
+      <select class="form-select" id="rec-tire-type">
+        <option value="allseason" ${rec?.tireType==='allseason'?'selected':''}>☀️ All-Season</option>
+        <option value="winter" ${rec?.tireType==='winter'?'selected':''}>❄️ Winter</option>
+      </select>
+    </div>`;
+  }
+
+  if (['parts','expenses'].includes(section)) {
+    body += `<div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Name</label>
+        <input class="form-input" type="text" id="rec-name" placeholder="Item name" value="${rec?.name||''}">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Price ($)</label>
+        <input class="form-input" type="number" id="rec-price" placeholder="0" value="${rec?.price||''}">
+      </div>
+    </div>`;
+  }
+
+  body += `<div class="form-field">
+    <label class="form-label">Notes</label>
+    <textarea class="form-textarea" id="rec-notes" placeholder="Details...">${rec?.notes||''}</textarea>
+  </div>`;
+
+  if (section === 'accidents') {
+    if (rec?.photos?.length) tempAccidentPhotos = [...rec.photos];
+    body += `<div class="form-field">
+      <label class="form-label">Photos</label>
+      <div class="photo-upload" style="padding:16px;">
+        <input type="file" accept="image/*" multiple onchange="handleAccidentPhotos(this)">
+        <div class="photo-upload-icon">📷</div>
+        <div class="photo-upload-label">Add photos</div>
+      </div>
+      <div class="photo-preview-grid" id="accident-photo-previews" style="margin-top:8px;"></div>
+    </div>`;
+  }
+
+  document.getElementById('modal-record-body').innerHTML = body;
+
+  if (section === 'accidents' && tempAccidentPhotos.length) {
+    renderAccidentPreviews();
+  }
+
+  openModal('modal-record');
+}
+
+function handleAccidentPhotos(input) {
+  const files = Array.from(input.files);
+  let count = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      tempAccidentPhotos.push(e.target.result);
+      count++;
+      if (count === files.length) renderAccidentPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAccidentPreviews() {
+  const grid = document.getElementById('accident-photo-previews');
+  if (!grid) return;
+  grid.innerHTML = tempAccidentPhotos.map((p,i) => `
+    <div class="photo-preview-item">
+      <img src="${p}" alt="">
+      <button class="photo-preview-del" onclick="removeAccidentPhoto(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeAccidentPhoto(i) {
+  tempAccidentPhotos.splice(i,1); renderAccidentPreviews();
+}
+
+function saveRecord() {
+  const car = getCar();
+  if (!car.records) car.records = {};
+  if (!car.records[currentSection]) car.records[currentSection] = [];
+
+  const rec = {
+    id: editingRecordId || uid(),
+    date: document.getElementById('rec-date')?.value || today(),
+    km: document.getElementById('rec-km')?.value || '',
+    notes: document.getElementById('rec-notes')?.value || '',
+  };
+
+  if (currentSection === 'tires') rec.tireType = document.getElementById('rec-tire-type').value;
+  if (['parts','expenses'].includes(currentSection)) {
+    rec.name = document.getElementById('rec-name')?.value || '';
+    rec.price = document.getElementById('rec-price')?.value || '';
+  }
+  if (currentSection === 'accidents') rec.photos = [...tempAccidentPhotos];
+
+  if (editingRecordId) {
+    const idx = car.records[currentSection].findIndex(r=>r.id===editingRecordId);
+    if (idx !== -1) car.records[currentSection][idx] = rec;
+  } else {
+    car.records[currentSection].push(rec);
+  }
+
+  save(); closeModal('modal-record'); renderSection(currentSection);
+  showToast(editingRecordId ? 'Record updated' : 'Record added');
+}
+
+function editRecord(section, id) {
+  currentSection = section;
+  openRecordModal(section, id);
+}
+
+function deleteRecord(section, id) {
+  if (!confirm('Delete this record?')) return;
+  const car = getCar();
+  car.records[section] = car.records[section].filter(r => r.id !== id);
+  save(); renderSection(section); showToast('Record deleted');
+}
+
+// ══════════════════════════════════════════════════════════════
+// CAR ADD/EDIT
+// ══════════════════════════════════════════════════════════════
+let editingCarId = null;
+
+function openAddCarModal() {
+  editingCarId = null; tempCarPhoto = null;
+  document.getElementById('modal-car-title').textContent = 'Add Vehicle';
+  document.getElementById('car-year').value = '';
+  document.getElementById('car-model').value = '';
+  document.getElementById('car-plate').value = '';
+  document.getElementById('car-vin').value = '';
+  document.getElementById('car-color').value = '';
+  document.getElementById('car-engine').value = '';
+  document.getElementById('car-notes').value = '';
+  document.getElementById('car-photo-preview').style.display = 'none';
+  document.getElementById('car-photo-upload-area').style.display = 'flex';
+  openModal('modal-car');
+}
+
+function openEditCarModal() {
+  const car = getCar(); if (!car) return;
+  editingCarId = car.id; tempCarPhoto = car.photo || null;
+  document.getElementById('modal-car-title').textContent = 'Edit Vehicle';
+  document.getElementById('car-year').value = car.year || '';
+  document.getElementById('car-model').value = car.model || '';
+  document.getElementById('car-plate').value = car.plate || '';
+  document.getElementById('car-vin').value = car.vin || '';
+  document.getElementById('car-color').value = car.color || '';
+  document.getElementById('car-engine').value = car.engine || '';
+  document.getElementById('car-notes').value = car.notes || '';
+  if (car.photo) {
+    document.getElementById('car-photo-preview-img').src = car.photo;
+    document.getElementById('car-photo-preview').style.display = 'block';
+    document.getElementById('car-photo-upload-area').style.display = 'none';
+  } else {
+    document.getElementById('car-photo-preview').style.display = 'none';
+    document.getElementById('car-photo-upload-area').style.display = 'flex';
+  }
+  openModal('modal-car');
+}
+
+function handleCarPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    tempCarPhoto = e.target.result;
+    document.getElementById('car-photo-preview-img').src = tempCarPhoto;
+    document.getElementById('car-photo-preview').style.display = 'block';
+    document.getElementById('car-photo-upload-area').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeCarPhoto() {
+  tempCarPhoto = null;
+  document.getElementById('car-photo-preview').style.display = 'none';
+  document.getElementById('car-photo-upload-area').style.display = 'flex';
+  document.getElementById('car-photo-input').value = '';
+}
+
+function saveCar() {
+  const model = document.getElementById('car-model').value.trim();
+  if (!model) { showToast('Please enter Make & Model'); return; }
+
+  const data = {
+    year: document.getElementById('car-year').value,
+    model,
+    plate: document.getElementById('car-plate').value,
+    vin: document.getElementById('car-vin').value,
+    color: document.getElementById('car-color').value,
+    engine: document.getElementById('car-engine').value,
+    notes: document.getElementById('car-notes').value,
+    photo: tempCarPhoto,
+  };
+
+  if (editingCarId) {
+    const car = db.cars.find(c => c.id === editingCarId);
+    Object.assign(car, data);
+  } else {
+    db.cars.push({ id: uid(), records: {}, ...data });
+  }
+
+  save(); closeModal('modal-car');
+  if (editingCarId) { renderCarScreen(); showToast('Vehicle updated'); }
+  else { renderGarage(); showToast('Vehicle added'); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ══════════════════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════════════════════════════════════
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('active');
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+function formatDate(d) {
+  if (!d) return '—';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }); }
+  catch { return d; }
+}
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ══════════════════════════════════════════════════════════════
+// IMPORT / EXPORT
+// ══════════════════════════════════════════════════════════════
+
+function dbStats() {
+  const cars = db.cars.length;
+  const records = db.cars.reduce((s, c) => {
+    if (!c.records) return s;
+    return s + Object.values(c.records).reduce((rs, arr) => rs + arr.length, 0);
+  }, 0);
+  const photos = db.cars.reduce((s, c) => {
+    let p = c.photo ? 1 : 0;
+    if (c.records?.accidents) p += c.records.accidents.reduce((ps, r) => ps + (r.photos?.length || 0), 0);
+    return s + p;
+  }, 0);
+  return { cars, records, photos };
+}
+
+function openIOModal() {
+  const stats = dbStats();
+  document.getElementById('modal-io-body').innerHTML = `
+    <div class="io-stats">
+      <div><div class="io-stat-val">${stats.cars}</div><div class="io-stat-lbl">Vehicles</div></div>
+      <div><div class="io-stat-val">${stats.records}</div><div class="io-stat-lbl">Records</div></div>
+      <div><div class="io-stat-val">${stats.photos}</div><div class="io-stat-lbl">Photos</div></div>
+    </div>
+
+    <div class="io-divider">Export</div>
+
+    <div class="io-option" onclick="doExport()">
+      <div class="io-option-icon export">📤</div>
+      <div class="io-option-text">
+        <div class="io-option-label">Export Backup</div>
+        <div class="io-option-sub">Save all data incl. photos to a .json file. Use to back up or transfer to another device.</div>
+      </div>
+      <div class="io-option-arrow">›</div>
+    </div>
+
+    <div class="io-divider">Import</div>
+
+    <div class="io-option" style="position:relative;overflow:hidden;">
+      <input type="file" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="handleImportFile(this, 'replace')">
+      <div class="io-option-icon import">📥</div>
+      <div class="io-option-text">
+        <div class="io-option-label">Replace All Data</div>
+        <div class="io-option-sub">Load a backup file and replace everything currently in the app.</div>
+      </div>
+      <div class="io-option-arrow">›</div>
+    </div>
+
+    <div class="io-option" style="position:relative;overflow:hidden;">
+      <input type="file" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="handleImportFile(this, 'merge')">
+      <div class="io-option-icon merge">🔀</div>
+      <div class="io-option-text">
+        <div class="io-option-label">Merge with Current</div>
+        <div class="io-option-sub">Add vehicles from a backup without deleting existing ones. Duplicate vehicles are skipped.</div>
+      </div>
+      <div class="io-option-arrow">›</div>
+    </div>
+
+    <div style="text-align:center; padding-top:4px;">
+      <button class="btn-secondary" style="width:100%;" onclick="closeModal('modal-io')">Close</button>
+    </div>
+  `;
+  openModal('modal-io');
+}
+
+function doExport() {
+  const ts = new Date().toISOString().slice(0,10);
+  const filename = `garage-backup-${ts}.json`;
+  const payload = JSON.stringify({ _version: 1, _exported: new Date().toISOString(), ...db }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('✅ Backup saved: ' + filename);
+}
+
+let _pendingImport = null;
+
+function handleImportFile(input, mode) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let parsed;
+    try { parsed = JSON.parse(e.target.result); }
+    catch { showToast('❌ Invalid file — not valid JSON'); return; }
+
+    if (!parsed.cars || !Array.isArray(parsed.cars)) {
+      showToast('❌ File does not look like a Garage backup'); return;
+    }
+
+    _pendingImport = { data: parsed, mode };
+    showImportConfirm(parsed, mode);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function showImportConfirm(parsed, mode) {
+  closeModal('modal-io');
+
+  const incomingStats = {
+    cars: parsed.cars.length,
+    records: parsed.cars.reduce((s,c) => s + (c.records ? Object.values(c.records).reduce((rs,a)=>rs+a.length,0) : 0), 0),
+  };
+
+  const exportedDate = parsed._exported ? new Date(parsed._exported).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : 'unknown date';
+
+  let duplicates = 0;
+  if (mode === 'merge') {
+    duplicates = parsed.cars.filter(ic => db.cars.some(ec => ec.id === ic.id || (ec.vin && ic.vin && ec.vin === ic.vin))).length;
+  }
+
+  document.getElementById('import-confirm-title').textContent = mode === 'replace' ? '⚠️ Replace All Data' : '🔀 Merge Data';
+
+  document.getElementById('modal-import-confirm-body').innerHTML = `
+    <div class="import-preview">
+      <div class="import-preview-title">File contents (exported ${exportedDate})</div>
+      <div class="import-preview-list">
+        🚗 ${incomingStats.cars} vehicle${incomingStats.cars!==1?'s':''}<br>
+        📋 ${incomingStats.records} record${incomingStats.records!==1?'s':''}
+        ${duplicates ? `<br>⚠️ ${duplicates} duplicate(s) will be skipped` : ''}
+      </div>
+    </div>
+    ${mode === 'replace' ? `
+    <div class="merge-warning">
+      <strong>Warning:</strong> This will permanently delete all current data (${db.cars.length} vehicle${db.cars.length!==1?'s':''}, ${dbStats().records} records) and replace it with the backup.
+    </div>` : `
+    <div class="merge-warning">
+      <strong>Merge:</strong> ${incomingStats.cars - duplicates} new vehicle${(incomingStats.cars-duplicates)!==1?'s':''} will be added to your existing garage. No current data will be deleted.
+    </div>`}
+  `;
+
+  document.getElementById('import-confirm-btn').textContent = mode === 'replace' ? 'Replace Everything' : 'Merge & Add';
+  document.getElementById('import-confirm-btn').onclick = doImport;
+
+  openModal('modal-import-confirm');
+}
+
+function doImport() {
+  if (!_pendingImport) return;
+  const { data, mode } = _pendingImport;
+  _pendingImport = null;
+
+  if (mode === 'replace') {
+    db = { cars: data.cars };
+  } else {
+    // merge: add cars not already present (match by id or VIN)
+    const newCars = data.cars.filter(ic =>
+      !db.cars.some(ec => ec.id === ic.id || (ec.vin && ic.vin && ec.vin.toLowerCase() === ic.vin.toLowerCase()))
+    );
+    db.cars = [...db.cars, ...newCars];
+  }
+
+  save();
+  closeModal('modal-import-confirm');
+  renderGarage();
+
+  const added = mode === 'replace' ? db.cars.length : data.cars.filter(ic =>
+    !db.cars.slice(0, db.cars.length - data.cars.length).some(ec => ec.id === ic.id)
+  ).length;
+
+  showToast(mode === 'replace'
+    ? `✅ Imported ${db.cars.length} vehicle${db.cars.length!==1?'s':''}`
+    : `✅ Merged — ${db.cars.length} vehicles total`
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+renderGarage();
+</script>
+</body>
+</html>
