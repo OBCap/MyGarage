@@ -513,13 +513,13 @@ body {
 .car-badge.archived-badge { background: rgba(138,133,128,0.15); border-color: rgba(138,133,128,0.3); }
 
 /* ── COST SUMMARY ── */
-.cost-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.cost-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
 .cost-summary-item {
   background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 14px 16px; text-align: center;
+  border-radius: var(--radius); padding: 12px 8px; text-align: center;
 }
-.cost-summary-val { font-family: 'Bebas Neue', cursive; font-size: 22px; color: var(--accent); letter-spacing: 1px; }
-.cost-summary-lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+.cost-summary-val { font-family: 'Bebas Neue', cursive; font-size: 17px; color: var(--accent); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cost-summary-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -802,6 +802,34 @@ body {
   </div>
 </div>
 
+<!-- EXPENSES / PURCHASE INFO MODAL -->
+<div class="modal-overlay" id="modal-expenses-info">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Vehicle Purchase Info</div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Purchase Price ($)</label>
+          <input class="form-input" type="number" id="expenses-purchase-price" placeholder="15000">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Purchase Date</label>
+          <input class="form-input" type="date" id="expenses-purchase-date">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="expenses-info-notes" placeholder="Dealer, financing, trade-in..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-expenses-info')">Cancel</button>
+      <button class="btn-primary" onclick="saveExpensesInfo()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- RECORD MODAL (dynamic) -->
 <div class="modal-overlay" id="modal-record">
   <div class="modal-sheet">
@@ -1000,6 +1028,7 @@ function renderCarScreen() {
   const partsTotal = (car.records?.parts || []).reduce((s,r) => s + (Number(r.price)||0), 0);
   const repairsTotal = (car.records?.repairs || []).reduce((s,r) => s + (Number(r.price)||0), 0);
   const fuelTotal = (car.records?.fuel || []).reduce((s,r) => s + calcFuelRecord(r).cost, 0);
+  const expTotal = expensesTotal(car);
 
   document.getElementById('car-cost-summary').innerHTML = `
     <div class="cost-summary-item">
@@ -1010,6 +1039,10 @@ function renderCarScreen() {
       <div class="cost-summary-val">$${fuelTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
       <div class="cost-summary-lbl">⛽ Fuel</div>
     </div>
+    <div class="cost-summary-item">
+      <div class="cost-summary-val">$${expTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+      <div class="cost-summary-lbl">💳 Expenses</div>
+    </div>
   `;
 
   const sections = [
@@ -1019,9 +1052,9 @@ function renderCarScreen() {
     {id:'fuel', icon:'⛽', label:'Fuel', sub:'Consumption & fuel cost tracking'},
     {id:'repairs', icon:'🔧', label:'Repairs', sub:'Maintenance & repair log'},
     {id:'parts', icon:'⚙️', label:'Parts', sub:'Parts purchased & installed'},
-    {id:'expenses', icon:'💳', label:'Expenses', sub:'Insurance, registration, etc.'},
+    {id:'expenses', icon:'💳', label:'Expenses', sub:'Purchase price, insurance, etc.'},
     {id:'accidents', icon:'🚨', label:'Accidents', sub:'Incident & damage records'},
-  ];
+  ].filter(s => !(s.id === 'oil' && isElectric));
 
   document.getElementById('car-sections').innerHTML = sections.map(s => `
     <div class="section-item" onclick="openSection('${s.id}')">
@@ -1057,7 +1090,7 @@ function renderSection(section) {
   else if (section === 'fuel') renderFuelRecords(records);
   else if (section === 'repairs') renderSimpleRecords('screen-repairs-content', records, 'repairs', 'No repair records yet.');
   else if (section === 'parts') renderPartsRecords(records);
-  else if (section === 'expenses') renderExpensesRecords(records);
+  else if (section === 'expenses') renderExpensesRecords(car, records);
   else if (section === 'accidents') renderAccidentRecords(records);
 }
 
@@ -1322,15 +1355,30 @@ function renderFuelRecords(records) {
 }
 
 // — EXPENSES —
-function renderExpensesRecords(records) {
+function expensesTotal(car) {
+  const recordsTotal = (car.records?.expenses || []).reduce((s,r) => s + (Number(r.price)||0), 0);
+  const purchasePrice = Number(car.purchaseInfo?.price) || 0;
+  return recordsTotal + purchasePrice;
+}
+
+function renderExpensesRecords(car, records) {
   const el = document.getElementById('screen-expenses-content');
-  const total = records.reduce((s,r)=>s+(Number(r.price)||0),0);
-  if (!records.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">💳</div><p>No expense records yet</p></div>`; return;
-  }
+  const info = car.purchaseInfo || {};
+  const total = expensesTotal(car);
   el.innerHTML = `
-    <div class="mileage-total">Total expenses: <span>$${total.toLocaleString()}</span></div>
-    ${records.slice().reverse().map(r => `
+    <div class="info-section">
+      <div class="info-section-title">
+        🚗 Vehicle Purchase
+        <button class="info-edit-btn" onclick="openExpensesInfoModal()">Edit</button>
+      </div>
+      <div class="info-grid">
+        <div class="info-field"><div class="info-field-label">Purchase Price</div><div class="info-field-value">${info.price ? '$'+Number(info.price).toLocaleString() : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Purchase Date</div><div class="info-field-value">${info.date ? formatDate(info.date) : '—'}</div></div>
+        ${info.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${info.notes}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="mileage-total">Total expenses (incl. purchase): <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+    ${records.length ? records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
       ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
@@ -1341,7 +1389,27 @@ function renderExpensesRecords(records) {
         <button class="record-btn" onclick="editRecord('expenses','${r.id}')">Edit</button>
         <button class="record-btn del" onclick="deleteRecord('expenses','${r.id}')">Delete</button>
       </div>
-    </div>`).join('')}`;
+    </div>`).join('') :
+    `<div class="empty-state" style="padding:30px 0;"><div class="icon" style="font-size:36px;">💳</div><p>No expense records yet</p></div>`
+    }`;
+}
+
+function openExpensesInfoModal() {
+  const car = getCar(); const info = car.purchaseInfo || {};
+  document.getElementById('expenses-purchase-price').value = info.price || '';
+  document.getElementById('expenses-purchase-date').value = info.date || '';
+  document.getElementById('expenses-info-notes').value = info.notes || '';
+  openModal('modal-expenses-info');
+}
+
+function saveExpensesInfo() {
+  const car = getCar();
+  car.purchaseInfo = {
+    price: document.getElementById('expenses-purchase-price').value,
+    date: document.getElementById('expenses-purchase-date').value,
+    notes: document.getElementById('expenses-info-notes').value,
+  };
+  save(); closeModal('modal-expenses-info'); renderSection('expenses'); showToast('Purchase info saved');
 }
 
 // — ACCIDENTS —
