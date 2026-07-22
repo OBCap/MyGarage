@@ -496,6 +496,30 @@ body {
   font-size: 12px; color: var(--text2); line-height: 1.5;
 }
 .merge-warning strong { color: var(--accent); }
+
+/* ── GARAGE TABS (Active / Archived) ── */
+.garage-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.garage-tab {
+  flex: 1; text-align: center; padding: 10px;
+  border-radius: 10px; background: var(--bg3);
+  border: 1px solid var(--border); color: var(--text2);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.garage-tab.active { background: rgba(232,184,75,0.12); border-color: rgba(232,184,75,0.3); color: var(--accent); }
+
+/* ── ARCHIVED CAR CARD ── */
+.car-card.archived { opacity: 0.6; }
+.car-badge.archived-badge { background: rgba(138,133,128,0.15); border-color: rgba(138,133,128,0.3); }
+
+/* ── COST SUMMARY ── */
+.cost-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.cost-summary-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; text-align: center;
+}
+.cost-summary-val { font-family: 'Bebas Neue', cursive; font-size: 22px; color: var(--accent); letter-spacing: 1px; }
+.cost-summary-lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -517,10 +541,12 @@ body {
   <div class="topbar">
     <button class="back-btn" onclick="goBack('screen-garage')">‹</button>
     <div class="topbar-title" id="car-screen-title">Car</div>
+    <button class="sync-btn" id="car-archive-btn" onclick="toggleCurrentCarArchive()" title="Archive / Restore">📦</button>
     <button class="icon-btn" onclick="openEditCarModal()">✎</button>
   </div>
   <div class="content">
     <div class="car-info-panel" id="car-info-panel"></div>
+    <div class="cost-summary" id="car-cost-summary"></div>
     <div class="section-menu" id="car-sections"></div>
   </div>
 </div>
@@ -553,6 +579,16 @@ body {
     <button class="icon-btn" onclick="openRecordModal('wipers')">+</button>
   </div>
   <div class="content" id="screen-wipers-content"></div>
+</div>
+
+<!-- SCREEN: FUEL -->
+<div class="screen" id="screen-fuel">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">⛽ Fuel</div>
+    <button class="icon-btn" onclick="openRecordModal('fuel')">+</button>
+  </div>
+  <div class="content" id="screen-fuel-content"></div>
 </div>
 
 <!-- SCREEN: REPAIRS -->
@@ -631,14 +667,27 @@ body {
         <label class="form-label">Make & Model</label>
         <input class="form-input" type="text" id="car-model" placeholder="Toyota Camry">
       </div>
+      <div class="form-field">
+        <label class="form-label">Fuel Type</label>
+        <select class="form-select" id="car-fuel-type" onchange="toggleFuelTypeFields()">
+          <option value="gasoline">⛽ Gasoline</option>
+          <option value="diesel">⛽ Diesel</option>
+          <option value="hybrid">🔋 Hybrid</option>
+          <option value="electric">⚡ Electric</option>
+        </select>
+      </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">License Plate</label>
           <input class="form-input" type="text" id="car-plate" placeholder="ABC 1234" style="text-transform:uppercase;">
         </div>
-        <div class="form-field">
+        <div class="form-field" id="car-engine-field">
           <label class="form-label">Engine (L)</label>
           <input class="form-input" type="text" id="car-engine" placeholder="2.0">
+        </div>
+        <div class="form-field" id="car-battery-field" style="display:none;">
+          <label class="form-label">Battery (kWh)</label>
+          <input class="form-input" type="text" id="car-battery" placeholder="75">
         </div>
       </div>
       <div class="form-field">
@@ -810,6 +859,7 @@ let currentSection = null;
 let editingTireType = null;
 let tempCarPhoto = null;
 let tempAccidentPhotos = [];
+let garageView = 'active';
 
 function save() { localStorage.setItem('garage_db', JSON.stringify(db)); }
 
@@ -835,21 +885,41 @@ function goBack(screenId) {
 // ══════════════════════════════════════════════════════════════
 // GARAGE SCREEN
 // ══════════════════════════════════════════════════════════════
+function setGarageView(view) {
+  garageView = view;
+  renderGarage();
+}
+
 function renderGarage() {
   const grid = document.getElementById('garage-grid');
-  if (!db.cars.length) {
-    grid.innerHTML = `<div class="empty-state">
-      <div class="icon">🏎️</div>
-      <p>Your garage is empty. Add your first vehicle!</p>
+  const activeCars = db.cars.filter(c => !c.archived);
+  const archivedCars = db.cars.filter(c => c.archived);
+  const list = garageView === 'archived' ? archivedCars : activeCars;
+
+  let tabsHtml = '';
+  if (db.cars.length) {
+    tabsHtml = `
+    <div class="garage-tabs">
+      <div class="garage-tab ${garageView==='active'?'active':''}" onclick="setGarageView('active')">Garage (${activeCars.length})</div>
+      <div class="garage-tab ${garageView==='archived'?'active':''}" onclick="setGarageView('archived')">📦 Archived (${archivedCars.length})</div>
+    </div>`;
+  }
+
+  if (!list.length) {
+    grid.innerHTML = tabsHtml + `<div class="empty-state">
+      <div class="icon">${garageView==='archived' ? '📦' : '🏎️'}</div>
+      <p>${garageView==='archived' ? 'No archived vehicles.' : (db.cars.length ? 'No active vehicles — check the Archived tab.' : 'Your garage is empty. Add your first vehicle!')}</p>
     </div>`;
     return;
   }
-  grid.innerHTML = db.cars.map(car => `
-    <div class="car-card" onclick="openCar('${car.id}')">
+
+  grid.innerHTML = tabsHtml + list.map(car => `
+    <div class="car-card ${car.archived?'archived':''}" onclick="openCar('${car.id}')">
       <div class="car-card-img">
         ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<span class="placeholder">🚗</span>`}
       </div>
       <div class="car-card-actions">
+        <div class="card-action-btn" onclick="event.stopPropagation(); toggleArchiveCar('${car.id}')" title="${car.archived?'Restore':'Archive'}">${car.archived?'♻️':'📦'}</div>
         <div class="card-action-btn del" onclick="event.stopPropagation(); deleteCar('${car.id}')">🗑</div>
       </div>
       <div class="car-card-body">
@@ -857,11 +927,34 @@ function renderGarage() {
         <div class="car-card-meta">
           ${car.plate ? `<span class="car-badge accent">${car.plate.toUpperCase()}</span>` : ''}
           ${car.color ? `<span class="car-badge"><span class="color-swatch" style="background:${car.color.toLowerCase()}"></span>${car.color}</span>` : ''}
-          ${car.engine ? `<span class="car-badge">${car.engine}L</span>` : ''}
+          ${car.fuelType === 'electric' ? (car.battery ? `<span class="car-badge">🔋 ${car.battery} kWh</span>` : '') : (car.engine ? `<span class="car-badge">${car.engine}L</span>` : '')}
+          ${car.archived ? `<span class="car-badge archived-badge">📦 Archived</span>` : ''}
         </div>
       </div>
     </div>
   `).join('');
+}
+
+function toggleArchiveCar(id) {
+  const car = db.cars.find(c => c.id === id);
+  if (!car) return;
+  car.archived = !car.archived;
+  save(); renderGarage();
+  showToast(car.archived ? 'Vehicle archived' : 'Vehicle restored');
+}
+
+function toggleCurrentCarArchive() {
+  const car = getCar(); if (!car) return;
+  car.archived = !car.archived;
+  save();
+  showToast(car.archived ? 'Vehicle archived' : 'Vehicle restored');
+  updateArchiveBtn();
+}
+
+function updateArchiveBtn() {
+  const car = getCar(); if (!car) return;
+  const btn = document.getElementById('car-archive-btn');
+  if (btn) btn.textContent = car.archived ? '♻️' : '📦';
 }
 
 function deleteCar(id) {
@@ -882,20 +975,40 @@ function openCar(id) {
 function renderCarScreen() {
   const car = getCar(); if (!car) return;
   document.getElementById('car-screen-title').textContent = car.model || 'Vehicle';
+  updateArchiveBtn();
+
+  const isElectric = car.fuelType === 'electric';
 
   document.getElementById('car-info-panel').innerHTML = `
     <div class="car-info-img">
       ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<div style="font-size:64px;">🚗</div>`}
     </div>
     <div class="car-info-body">
-      <div class="car-info-name">${car.year ? car.year + ' ' : ''}${car.model || 'Vehicle'}</div>
+      <div class="car-info-name">${car.year ? car.year + ' ' : ''}${car.model || 'Vehicle'} ${car.archived ? '<span class="car-badge archived-badge" style="vertical-align:middle;">📦 Archived</span>' : ''}</div>
       <div class="car-info-grid">
         ${car.plate ? `<div class="car-info-field"><div class="car-info-field-label">License Plate</div><div class="car-info-field-value">${car.plate.toUpperCase()}</div></div>` : ''}
         ${car.color ? `<div class="car-info-field"><div class="car-info-field-label">Color</div><div class="car-info-field-value"><span class="color-swatch" style="background:${car.color.toLowerCase()}"></span>${car.color}</div></div>` : ''}
-        ${car.engine ? `<div class="car-info-field"><div class="car-info-field-label">Engine</div><div class="car-info-field-value">${car.engine}L</div></div>` : ''}
+        ${isElectric
+          ? (car.battery ? `<div class="car-info-field"><div class="car-info-field-label">Battery</div><div class="car-info-field-value">🔋 ${car.battery} kWh</div></div>` : '')
+          : (car.engine ? `<div class="car-info-field"><div class="car-info-field-label">Engine</div><div class="car-info-field-value">${car.engine}L</div></div>` : '')}
         ${car.vin ? `<div class="car-info-field" style="grid-column:1/-1"><div class="car-info-field-label">VIN</div><div class="car-info-field-value" style="font-size:12px;letter-spacing:0.5px;">${car.vin.toUpperCase()}</div></div>` : ''}
         ${car.notes ? `<div class="car-info-field" style="grid-column:1/-1"><div class="car-info-field-label">Notes</div><div class="car-info-field-value">${car.notes}</div></div>` : ''}
       </div>
+    </div>
+  `;
+
+  const partsTotal = (car.records?.parts || []).reduce((s,r) => s + (Number(r.price)||0), 0);
+  const repairsTotal = (car.records?.repairs || []).reduce((s,r) => s + (Number(r.price)||0), 0);
+  const fuelTotal = (car.records?.fuel || []).reduce((s,r) => s + calcFuelRecord(r).cost, 0);
+
+  document.getElementById('car-cost-summary').innerHTML = `
+    <div class="cost-summary-item">
+      <div class="cost-summary-val">$${(partsTotal+repairsTotal).toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+      <div class="cost-summary-lbl">Parts & Repairs</div>
+    </div>
+    <div class="cost-summary-item">
+      <div class="cost-summary-val">$${fuelTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+      <div class="cost-summary-lbl">⛽ Fuel</div>
     </div>
   `;
 
@@ -903,9 +1016,10 @@ function renderCarScreen() {
     {id:'oil', icon:'🛢', label:'Oil Changes', sub:'Engine oil service history'},
     {id:'tires', icon:'🔄', label:'Tires', sub:'Tire size & change history'},
     {id:'wipers', icon:'🌧', label:'Wipers', sub:'Wiper blade sizes & replacements'},
+    {id:'fuel', icon:'⛽', label:'Fuel', sub:'Consumption & fuel cost tracking'},
     {id:'repairs', icon:'🔧', label:'Repairs', sub:'Maintenance & repair log'},
     {id:'parts', icon:'⚙️', label:'Parts', sub:'Parts purchased & installed'},
-    {id:'expenses', icon:'💳', label:'Expenses', sub:'Fuel, insurance, etc.'},
+    {id:'expenses', icon:'💳', label:'Expenses', sub:'Insurance, registration, etc.'},
     {id:'accidents', icon:'🚨', label:'Accidents', sub:'Incident & damage records'},
   ];
 
@@ -940,6 +1054,7 @@ function renderSection(section) {
   if (section === 'oil') renderOilSection(car, records);
   else if (section === 'tires') renderTiresSection(car, records);
   else if (section === 'wipers') renderWipersSection(car, records);
+  else if (section === 'fuel') renderFuelRecords(records);
   else if (section === 'repairs') renderSimpleRecords('screen-repairs-content', records, 'repairs', 'No repair records yet.');
   else if (section === 'parts') renderPartsRecords(records);
   else if (section === 'expenses') renderExpensesRecords(records);
@@ -1132,16 +1247,21 @@ function renderSimpleRecords(elId, records, section, emptyMsg) {
     el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">📋</div><p>${emptyMsg}</p></div>`;
     return;
   }
-  el.innerHTML = records.slice().reverse().map(r => `
+  const total = records.reduce((s,r) => s + (Number(r.price)||0), 0);
+  el.innerHTML = `
+    ${total ? `<div class="mileage-total">Total ${section} cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
+    ${records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
       ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
+      ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
       ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
       <div class="record-actions">
         <button class="record-btn" onclick="editRecord('${section}','${r.id}')">Edit</button>
         <button class="record-btn del" onclick="deleteRecord('${section}','${r.id}')">Delete</button>
       </div>
-    </div>`).join('');
+    </div>`).join('')}`;
 }
 
 // — PARTS —
@@ -1162,6 +1282,43 @@ function renderPartsRecords(records) {
         <button class="record-btn del" onclick="deleteRecord('parts','${r.id}')">Delete</button>
       </div>
     </div>`).join('');
+}
+
+// — FUEL —
+function calcFuelRecord(r) {
+  const km = Number(r.km) || 0;
+  const prevKm = Number(r.prevKm) || 0;
+  const distance = Math.max(0, km - prevKm);
+  const consumption = Number(r.consumption) || 0;
+  const price = Number(r.price) || 0;
+  const liters = distance / 100 * consumption;
+  const cost = liters * price;
+  return { distance, liters, cost };
+}
+
+function renderFuelRecords(records) {
+  const el = document.getElementById('screen-fuel-content');
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">⛽</div><p>No fuel records yet</p></div>`; return;
+  }
+  const total = records.reduce((s,r) => s + calcFuelRecord(r).cost, 0);
+  el.innerHTML = `
+    <div class="mileage-total">Total fuel cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+    ${records.slice().reverse().map(r => {
+      const c = calcFuelRecord(r);
+      return `
+      <div class="record-card" style="margin-bottom:10px;">
+        <div class="record-date">${formatDate(r.date)}</div>
+        <div class="record-km">📍 ${Number(r.prevKm||0).toLocaleString()} → ${Number(r.km||0).toLocaleString()} km (${c.distance.toLocaleString()} km)</div>
+        <div class="record-name">${c.liters.toFixed(1)} L @ $${Number(r.price||0).toFixed(2)}/L</div>
+        <div class="record-price">$${c.cost.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+        ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+        <div class="record-actions">
+          <button class="record-btn" onclick="editRecord('fuel','${r.id}')">Edit</button>
+          <button class="record-btn del" onclick="deleteRecord('fuel','${r.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('')}`;
 }
 
 // — EXPENSES —
@@ -1214,7 +1371,7 @@ function renderAccidentRecords(records) {
 // ══════════════════════════════════════════════════════════════
 const sectionTitles = {
   oil: '🛢 Oil Change', tires: '🔄 Tire Swap', wipers: '🌧 Wiper Replacement',
-  repairs: '🔧 Repair', parts: '⚙️ Part', expenses: '💳 Expense', accidents: '🚨 Accident'
+  fuel: '⛽ Fuel Fill-up', repairs: '🔧 Repair', parts: '⚙️ Part', expenses: '💳 Expense', accidents: '🚨 Accident'
 };
 
 function openRecordModal(section, recordId) {
@@ -1227,7 +1384,38 @@ function openRecordModal(section, recordId) {
 
   document.getElementById('modal-record-title').textContent = (rec ? 'Edit ' : 'Add ') + sectionTitles[section];
 
-  let body = `
+  let body;
+
+  if (section === 'fuel') {
+    const fuelRecords = (car.records.fuel || []).filter(r => r.id !== recordId);
+    const lastKm = fuelRecords.length ? Math.max(...fuelRecords.map(r => Number(r.km)||0)) : '';
+    body = `
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="rec-date" value="${rec?.date || today()}">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Current Odometer (km)</label>
+        <input class="form-input" type="number" id="rec-km" placeholder="52000" value="${rec?.km||''}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Previous Odometer (km)</label>
+        <input class="form-input" type="number" id="rec-prev-km" placeholder="50000" value="${rec ? (rec.prevKm||'') : lastKm}">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Avg Consumption (L/100km)</label>
+        <input class="form-input" type="number" step="0.1" id="rec-consumption" placeholder="8.5" value="${rec?.consumption||''}">
+      </div>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Fuel Price ($/L)</label>
+      <input class="form-input" type="number" step="0.01" id="rec-price" placeholder="1.55" value="${rec?.price||''}">
+    </div>`;
+  } else {
+    body = `
     <div class="form-row">
       <div class="form-field">
         <label class="form-label">Date</label>
@@ -1238,6 +1426,7 @@ function openRecordModal(section, recordId) {
         <input class="form-input" type="number" id="rec-km" placeholder="50000" value="${rec?.km||''}">
       </div>
     </div>`;
+  }
 
   if (section === 'tires') {
     body += `<div class="form-field">
@@ -1249,7 +1438,7 @@ function openRecordModal(section, recordId) {
     </div>`;
   }
 
-  if (['parts','expenses'].includes(section)) {
+  if (['parts','expenses','repairs'].includes(section)) {
     body += `<div class="form-row">
       <div class="form-field">
         <label class="form-label">Name</label>
@@ -1330,8 +1519,13 @@ function saveRecord() {
   };
 
   if (currentSection === 'tires') rec.tireType = document.getElementById('rec-tire-type').value;
-  if (['parts','expenses'].includes(currentSection)) {
+  if (['parts','expenses','repairs'].includes(currentSection)) {
     rec.name = document.getElementById('rec-name')?.value || '';
+    rec.price = document.getElementById('rec-price')?.value || '';
+  }
+  if (currentSection === 'fuel') {
+    rec.prevKm = document.getElementById('rec-prev-km')?.value || '';
+    rec.consumption = document.getElementById('rec-consumption')?.value || '';
     rec.price = document.getElementById('rec-price')?.value || '';
   }
   if (currentSection === 'accidents') rec.photos = [...tempAccidentPhotos];
@@ -1364,6 +1558,12 @@ function deleteRecord(section, id) {
 // ══════════════════════════════════════════════════════════════
 let editingCarId = null;
 
+function toggleFuelTypeFields() {
+  const isElectric = document.getElementById('car-fuel-type').value === 'electric';
+  document.getElementById('car-engine-field').style.display = isElectric ? 'none' : 'flex';
+  document.getElementById('car-battery-field').style.display = isElectric ? 'flex' : 'none';
+}
+
 function openAddCarModal() {
   editingCarId = null; tempCarPhoto = null;
   document.getElementById('modal-car-title').textContent = 'Add Vehicle';
@@ -1372,8 +1572,11 @@ function openAddCarModal() {
   document.getElementById('car-plate').value = '';
   document.getElementById('car-vin').value = '';
   document.getElementById('car-color').value = '';
+  document.getElementById('car-fuel-type').value = 'gasoline';
   document.getElementById('car-engine').value = '';
+  document.getElementById('car-battery').value = '';
   document.getElementById('car-notes').value = '';
+  toggleFuelTypeFields();
   document.getElementById('car-photo-preview').style.display = 'none';
   document.getElementById('car-photo-upload-area').style.display = 'flex';
   openModal('modal-car');
@@ -1388,8 +1591,11 @@ function openEditCarModal() {
   document.getElementById('car-plate').value = car.plate || '';
   document.getElementById('car-vin').value = car.vin || '';
   document.getElementById('car-color').value = car.color || '';
+  document.getElementById('car-fuel-type').value = car.fuelType || 'gasoline';
   document.getElementById('car-engine').value = car.engine || '';
+  document.getElementById('car-battery').value = car.battery || '';
   document.getElementById('car-notes').value = car.notes || '';
+  toggleFuelTypeFields();
   if (car.photo) {
     document.getElementById('car-photo-preview-img').src = car.photo;
     document.getElementById('car-photo-preview').style.display = 'block';
@@ -1424,13 +1630,16 @@ function saveCar() {
   const model = document.getElementById('car-model').value.trim();
   if (!model) { showToast('Please enter Make & Model'); return; }
 
+  const fuelType = document.getElementById('car-fuel-type').value;
   const data = {
     year: document.getElementById('car-year').value,
     model,
     plate: document.getElementById('car-plate').value,
     vin: document.getElementById('car-vin').value,
     color: document.getElementById('car-color').value,
-    engine: document.getElementById('car-engine').value,
+    fuelType,
+    engine: fuelType === 'electric' ? '' : document.getElementById('car-engine').value,
+    battery: fuelType === 'electric' ? document.getElementById('car-battery').value : '',
     notes: document.getElementById('car-notes').value,
     photo: tempCarPhoto,
   };
