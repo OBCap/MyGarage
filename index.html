@@ -528,7 +528,7 @@ body {
 <div class="screen active" id="screen-garage">
   <div class="topbar">
     <div class="topbar-title">🚗 My Garage</div>
-    <button class="sync-btn" onclick="openIOModal()" title="Import / Export">⇅</button>
+    <button class="sync-btn" onclick="openIOModal()" title="Import / Export">💾</button>
     <button class="icon-btn" onclick="openAddCarModal()">+</button>
   </div>
   <div class="content">
@@ -1027,7 +1027,7 @@ function renderCarScreen() {
 
   const partsTotal = (car.records?.parts || []).reduce((s,r) => s + (Number(r.price)||0), 0);
   const repairsTotal = (car.records?.repairs || []).reduce((s,r) => s + (Number(r.price)||0), 0);
-  const fuelTotal = (car.records?.fuel || []).reduce((s,r) => s + calcFuelRecord(r).cost, 0);
+  const fuelTotal = (car.records?.fuel || []).reduce((s,r) => s + calcFuelRecord(car, r).cost, 0);
   const expTotal = expensesTotal(car);
 
   document.getElementById('car-cost-summary').innerHTML = `
@@ -1087,7 +1087,7 @@ function renderSection(section) {
   if (section === 'oil') renderOilSection(car, records);
   else if (section === 'tires') renderTiresSection(car, records);
   else if (section === 'wipers') renderWipersSection(car, records);
-  else if (section === 'fuel') renderFuelRecords(records);
+  else if (section === 'fuel') renderFuelRecords(car, records);
   else if (section === 'repairs') renderSimpleRecords('screen-repairs-content', records, 'repairs', 'No repair records yet.');
   else if (section === 'parts') renderPartsRecords(records);
   else if (section === 'expenses') renderExpensesRecords(car, records);
@@ -1318,32 +1318,52 @@ function renderPartsRecords(records) {
 }
 
 // — FUEL —
-function calcFuelRecord(r) {
-  const km = Number(r.km) || 0;
-  const prevKm = Number(r.prevKm) || 0;
-  const distance = Math.max(0, km - prevKm);
-  const consumption = Number(r.consumption) || 0;
-  const price = Number(r.price) || 0;
-  const liters = distance / 100 * consumption;
-  const cost = liters * price;
-  return { distance, liters, cost };
+function calcFuelRecord(car, r) {
+  const cur = Number(r.km) || 0;
+  const prev = Number(r.prevKm) || 0;
+  const distance = Math.max(0, cur - prev);
+  const rate = Number(r.consumption) || 0;   // L/100km  OR  mpg
+  const price = Number(r.price) || 0;        // $/L      OR  $/gal
+  const isImperial = car.fuelUnit === 'imperial';
+  const volume = isImperial
+    ? (rate > 0 ? distance / rate : 0)       // gallons = miles / mpg
+    : (distance / 100 * rate);               // liters = km/100 * L/100km
+  const cost = volume * price;
+  return { distance, volume, cost };
 }
 
-function renderFuelRecords(records) {
+function setFuelUnit(unit) {
+  const car = getCar(); if (!car) return;
+  car.fuelUnit = unit;
+  save(); renderSection('fuel');
+}
+
+function renderFuelRecords(car, records) {
   const el = document.getElementById('screen-fuel-content');
+  const isImperial = car.fuelUnit === 'imperial';
+  const distUnit = isImperial ? 'mi' : 'km';
+  const volUnit = isImperial ? 'gal' : 'L';
+  const priceUnit = isImperial ? '$/gal' : '$/L';
+
+  const unitToggle = `
+    <div class="garage-tabs" style="margin-bottom:14px;">
+      <div class="garage-tab ${!isImperial?'active':''}" onclick="setFuelUnit('metric')">L/100km · $/L</div>
+      <div class="garage-tab ${isImperial?'active':''}" onclick="setFuelUnit('imperial')">mi/gal · $/gal</div>
+    </div>`;
+
   if (!records.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">⛽</div><p>No fuel records yet</p></div>`; return;
+    el.innerHTML = unitToggle + `<div class="empty-state"><div class="icon" style="font-size:36px;">⛽</div><p>No fuel records yet</p></div>`; return;
   }
-  const total = records.reduce((s,r) => s + calcFuelRecord(r).cost, 0);
-  el.innerHTML = `
+  const total = records.reduce((s,r) => s + calcFuelRecord(car, r).cost, 0);
+  el.innerHTML = unitToggle + `
     <div class="mileage-total">Total fuel cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
     ${records.slice().reverse().map(r => {
-      const c = calcFuelRecord(r);
+      const c = calcFuelRecord(car, r);
       return `
       <div class="record-card" style="margin-bottom:10px;">
         <div class="record-date">${formatDate(r.date)}</div>
-        <div class="record-km">📍 ${Number(r.prevKm||0).toLocaleString()} → ${Number(r.km||0).toLocaleString()} km (${c.distance.toLocaleString()} km)</div>
-        <div class="record-name">${c.liters.toFixed(1)} L @ $${Number(r.price||0).toFixed(2)}/L</div>
+        <div class="record-km">📍 ${Number(r.prevKm||0).toLocaleString()} → ${Number(r.km||0).toLocaleString()} ${distUnit} (${c.distance.toLocaleString()} ${distUnit})</div>
+        <div class="record-name">${c.volume.toFixed(1)} ${volUnit} @ $${Number(r.price||0).toFixed(2)}/${volUnit}</div>
         <div class="record-price">$${c.cost.toLocaleString(undefined,{maximumFractionDigits:2})}</div>
         ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
         <div class="record-actions">
@@ -1455,6 +1475,12 @@ function openRecordModal(section, recordId) {
   let body;
 
   if (section === 'fuel') {
+    const isImperial = car.fuelUnit === 'imperial';
+    const distUnit = isImperial ? 'mi' : 'km';
+    const rateLabel = isImperial ? 'Avg Consumption (mpg)' : 'Avg Consumption (L/100km)';
+    const ratePlaceholder = isImperial ? '28' : '8.5';
+    const priceLabel = isImperial ? 'Fuel Price ($/gal)' : 'Fuel Price ($/L)';
+    const pricePlaceholder = isImperial ? '3.80' : '1.55';
     const fuelRecords = (car.records.fuel || []).filter(r => r.id !== recordId);
     const lastKm = fuelRecords.length ? Math.max(...fuelRecords.map(r => Number(r.km)||0)) : '';
     body = `
@@ -1464,23 +1490,23 @@ function openRecordModal(section, recordId) {
         <input class="form-input" type="date" id="rec-date" value="${rec?.date || today()}">
       </div>
       <div class="form-field">
-        <label class="form-label">Current Odometer (km)</label>
+        <label class="form-label">Current Odometer (${distUnit})</label>
         <input class="form-input" type="number" id="rec-km" placeholder="52000" value="${rec?.km||''}">
       </div>
     </div>
     <div class="form-row">
       <div class="form-field">
-        <label class="form-label">Previous Odometer (km)</label>
+        <label class="form-label">Previous Odometer (${distUnit})</label>
         <input class="form-input" type="number" id="rec-prev-km" placeholder="50000" value="${rec ? (rec.prevKm||'') : lastKm}">
       </div>
       <div class="form-field">
-        <label class="form-label">Avg Consumption (L/100km)</label>
-        <input class="form-input" type="number" step="0.1" id="rec-consumption" placeholder="8.5" value="${rec?.consumption||''}">
+        <label class="form-label">${rateLabel}</label>
+        <input class="form-input" type="number" step="0.1" id="rec-consumption" placeholder="${ratePlaceholder}" value="${rec?.consumption||''}">
       </div>
     </div>
     <div class="form-field">
-      <label class="form-label">Fuel Price ($/L)</label>
-      <input class="form-input" type="number" step="0.01" id="rec-price" placeholder="1.55" value="${rec?.price||''}">
+      <label class="form-label">${priceLabel}</label>
+      <input class="form-input" type="number" step="0.01" id="rec-price" placeholder="${pricePlaceholder}" value="${rec?.price||''}">
     </div>`;
   } else {
     body = `
