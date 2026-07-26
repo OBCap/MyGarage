@@ -782,17 +782,17 @@ body {
     <div class="modal-body">
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Driver (mm)</label>
-          <input class="form-input" type="text" id="wiper-driver" placeholder="600mm">
+          <label class="form-label" id="wiper-driver-label">Driver (mm)</label>
+          <input class="form-input" type="text" id="wiper-driver" placeholder="600">
         </div>
         <div class="form-field">
-          <label class="form-label">Passenger (mm)</label>
-          <input class="form-input" type="text" id="wiper-passenger" placeholder="400mm">
+          <label class="form-label" id="wiper-passenger-label">Passenger (mm)</label>
+          <input class="form-input" type="text" id="wiper-passenger" placeholder="400">
         </div>
       </div>
       <div class="form-field">
-        <label class="form-label">Rear (mm)</label>
-        <input class="form-input" type="text" id="wiper-rear" placeholder="300mm">
+        <label class="form-label" id="wiper-rear-label">Rear (mm)</label>
+        <input class="form-input" type="text" id="wiper-rear" placeholder="300">
       </div>
     </div>
     <div class="modal-actions">
@@ -1238,19 +1238,31 @@ function saveTireInfo() {
 }
 
 // — WIPERS —
+function setWipersUnit(unit) {
+  const car = getCar(); if (!car) return;
+  car.wipersUnit = unit;
+  save(); renderSection('wipers');
+}
+
 function renderWipersSection(car, records) {
   const info = car.wipersInfo || {};
+  const isImperial = car.wipersUnit === 'imperial';
+  const u = isImperial ? '"' : 'mm';
   const el = document.getElementById('screen-wipers-content');
   el.innerHTML = `
+    <div class="garage-tabs" style="margin-bottom:14px;">
+      <div class="garage-tab ${!isImperial?'active':''}" onclick="setWipersUnit('metric')">Millimeters (mm)</div>
+      <div class="garage-tab ${isImperial?'active':''}" onclick="setWipersUnit('imperial')">Inches (in)</div>
+    </div>
     <div class="info-section">
       <div class="info-section-title">
         Blade Sizes
         <button class="info-edit-btn" onclick="openWipersInfoModal()">Edit</button>
       </div>
       <div class="info-grid">
-        <div class="info-field"><div class="info-field-label">Driver</div><div class="info-field-value">${info.driver||'—'}</div></div>
-        <div class="info-field"><div class="info-field-label">Passenger</div><div class="info-field-value">${info.passenger||'—'}</div></div>
-        <div class="info-field"><div class="info-field-label">Rear</div><div class="info-field-value">${info.rear||'—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Driver</div><div class="info-field-value">${info.driver ? info.driver+u : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Passenger</div><div class="info-field-value">${info.passenger ? info.passenger+u : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Rear</div><div class="info-field-value">${info.rear ? info.rear+u : '—'}</div></div>
       </div>
     </div>
     <div class="section-header">
@@ -1272,6 +1284,13 @@ function renderWipersSection(car, records) {
 
 function openWipersInfoModal() {
   const car = getCar(); const info = car.wipersInfo || {};
+  const isImperial = car.wipersUnit === 'imperial';
+  document.getElementById('wiper-driver-label').textContent = isImperial ? 'Driver (in)' : 'Driver (mm)';
+  document.getElementById('wiper-passenger-label').textContent = isImperial ? 'Passenger (in)' : 'Passenger (mm)';
+  document.getElementById('wiper-rear-label').textContent = isImperial ? 'Rear (in)' : 'Rear (mm)';
+  document.getElementById('wiper-driver').placeholder = isImperial ? '24' : '600';
+  document.getElementById('wiper-passenger').placeholder = isImperial ? '16' : '400';
+  document.getElementById('wiper-rear').placeholder = isImperial ? '12' : '300';
   document.getElementById('wiper-driver').value = info.driver || '';
   document.getElementById('wiper-passenger').value = info.passenger || '';
   document.getElementById('wiper-rear').value = info.rear || '';
