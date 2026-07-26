@@ -1027,12 +1027,13 @@ function renderCarScreen() {
 
   const partsTotal = (car.records?.parts || []).reduce((s,r) => s + (Number(r.price)||0), 0);
   const repairsTotal = (car.records?.repairs || []).reduce((s,r) => s + (Number(r.price)||0), 0);
+  const tiresCost = tiresTotal(car);
   const fuelTotal = (car.records?.fuel || []).reduce((s,r) => s + calcFuelRecord(car, r).cost, 0);
   const expTotal = expensesTotal(car);
 
   document.getElementById('car-cost-summary').innerHTML = `
     <div class="cost-summary-item">
-      <div class="cost-summary-val">$${(partsTotal+repairsTotal).toLocaleString(undefined,{maximumFractionDigits:2})}</div>
+      <div class="cost-summary-val">$${(partsTotal+repairsTotal+tiresCost).toLocaleString(undefined,{maximumFractionDigits:2})}</div>
       <div class="cost-summary-lbl">Parts & Repairs</div>
     </div>
     <div class="cost-summary-item">
@@ -1164,10 +1165,17 @@ function saveOilInfo() {
 }
 
 // — TIRES —
+function tiresTotal(car) {
+  const setsTotal = (Number(car.tiresWinter?.price)||0) + (Number(car.tiresAllSeason?.price)||0);
+  const recordsTotal = (car.records?.tires || []).reduce((s,r) => s + (Number(r.price)||0), 0);
+  return setsTotal + recordsTotal;
+}
+
 function renderTiresSection(car, records) {
   const wi = car.tiresWinter || {}; const al = car.tiresAllSeason || {};
   const winterKm = records.filter(r=>r.tireType==='winter').reduce((s,r)=>s+(Number(r.km)||0),0);
   const allKm = records.filter(r=>r.tireType==='allseason').reduce((s,r)=>s+(Number(r.km)||0),0);
+  const total = tiresTotal(car);
   const el = document.getElementById('screen-tires-content');
   el.innerHTML = `
     <div class="info-section">
@@ -1192,6 +1200,7 @@ function renderTiresSection(car, records) {
         ${al.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${al.notes}</div></div>` : ''}
       </div>
     </div>
+    <div class="mileage-total">Total tire cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
     <div class="section-header">
       <div class="section-header-title">Swap History (${records.length})</div>
     </div>
@@ -1200,6 +1209,7 @@ function renderTiresSection(car, records) {
         <div class="record-date">${formatDate(r.date)}</div>
         ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
         <div class="${r.tireType==='winter' ? 'record-tag winter' : 'record-tag'}">${r.tireType==='winter'?'❄️ Winter':'☀️ All-Season'}</div>
+        ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
         ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
         <div class="record-actions">
           <button class="record-btn" onclick="editRecord('tires','${r.id}')">Edit</button>
@@ -1557,12 +1567,18 @@ function openRecordModal(section, recordId) {
   }
 
   if (section === 'tires') {
-    body += `<div class="form-field">
-      <label class="form-label">Tire Type</label>
-      <select class="form-select" id="rec-tire-type">
-        <option value="allseason" ${rec?.tireType==='allseason'?'selected':''}>☀️ All-Season</option>
-        <option value="winter" ${rec?.tireType==='winter'?'selected':''}>❄️ Winter</option>
-      </select>
+    body += `<div class="form-row">
+      <div class="form-field">
+        <label class="form-label">Tire Type</label>
+        <select class="form-select" id="rec-tire-type">
+          <option value="allseason" ${rec?.tireType==='allseason'?'selected':''}>☀️ All-Season</option>
+          <option value="winter" ${rec?.tireType==='winter'?'selected':''}>❄️ Winter</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Swap Cost ($)</label>
+        <input class="form-input" type="number" id="rec-price" placeholder="0" value="${rec?.price||''}">
+      </div>
     </div>`;
   }
 
@@ -1646,7 +1662,10 @@ function saveRecord() {
     notes: document.getElementById('rec-notes')?.value || '',
   };
 
-  if (currentSection === 'tires') rec.tireType = document.getElementById('rec-tire-type').value;
+  if (currentSection === 'tires') {
+    rec.tireType = document.getElementById('rec-tire-type').value;
+    rec.price = document.getElementById('rec-price')?.value || '';
+  }
   if (['parts','expenses','repairs'].includes(currentSection)) {
     rec.name = document.getElementById('rec-name')?.value || '';
     rec.price = document.getElementById('rec-price')?.value || '';
