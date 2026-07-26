@@ -718,7 +718,7 @@ body {
           <input class="form-input" type="text" id="oil-type" placeholder="5W-30 Synthetic">
         </div>
         <div class="form-field">
-          <label class="form-label">Volume (L)</label>
+          <label class="form-label" id="oil-volume-label">Volume (L)</label>
           <input class="form-input" type="text" id="oil-volume" placeholder="4.5">
         </div>
       </div>
@@ -1095,10 +1095,22 @@ function renderSection(section) {
 }
 
 // — OIL —
+function setOilUnit(unit) {
+  const car = getCar(); if (!car) return;
+  car.oilUnit = unit;
+  save(); renderSection('oil');
+}
+
 function renderOilSection(car, records) {
   const info = car.oilInfo || {};
+  const isImperial = car.oilUnit === 'imperial';
+  const volUnit = isImperial ? 'qt' : 'L';
   const el = document.getElementById('screen-oil-content');
   el.innerHTML = `
+    <div class="garage-tabs" style="margin-bottom:14px;">
+      <div class="garage-tab ${!isImperial?'active':''}" onclick="setOilUnit('metric')">Liters (L)</div>
+      <div class="garage-tab ${isImperial?'active':''}" onclick="setOilUnit('imperial')">Quarts (qt)</div>
+    </div>
     <div class="info-section">
       <div class="info-section-title">
         General Info
@@ -1106,7 +1118,7 @@ function renderOilSection(car, records) {
       </div>
       <div class="info-grid">
         <div class="info-field"><div class="info-field-label">Oil Type</div><div class="info-field-value">${info.type || '—'}</div></div>
-        <div class="info-field"><div class="info-field-label">Volume</div><div class="info-field-value">${info.volume ? info.volume+'L' : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Volume</div><div class="info-field-value">${info.volume ? info.volume+' '+volUnit : '—'}</div></div>
         <div class="info-field"><div class="info-field-label">Drain Plug</div><div class="info-field-value">${info.plug || '—'}</div></div>
         ${info.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${info.notes}</div></div>` : ''}
       </div>
@@ -1130,6 +1142,9 @@ function renderOilSection(car, records) {
 
 function openOilInfoModal() {
   const car = getCar(); const info = car.oilInfo || {};
+  const isImperial = car.oilUnit === 'imperial';
+  document.getElementById('oil-volume-label').textContent = isImperial ? 'Volume (qt)' : 'Volume (L)';
+  document.getElementById('oil-volume').placeholder = isImperial ? '4.75' : '4.5';
   document.getElementById('oil-type').value = info.type || '';
   document.getElementById('oil-volume').value = info.volume || '';
   document.getElementById('oil-plug').value = info.plug || '';
