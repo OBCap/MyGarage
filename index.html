@@ -667,14 +667,23 @@ body {
         <label class="form-label">Make & Model</label>
         <input class="form-input" type="text" id="car-model" placeholder="Toyota Camry">
       </div>
-      <div class="form-field">
-        <label class="form-label">Fuel Type</label>
-        <select class="form-select" id="car-fuel-type" onchange="toggleFuelTypeFields()">
-          <option value="gasoline">⛽ Gasoline</option>
-          <option value="diesel">⛽ Diesel</option>
-          <option value="hybrid">🔋 Hybrid</option>
-          <option value="electric">⚡ Electric</option>
-        </select>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Fuel Type</label>
+          <select class="form-select" id="car-fuel-type" onchange="toggleFuelTypeFields()">
+            <option value="gasoline">⛽ Gasoline</option>
+            <option value="diesel">⛽ Diesel</option>
+            <option value="hybrid">🔋 Hybrid</option>
+            <option value="electric">⚡ Electric</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Mileage Unit</label>
+          <select class="form-select" id="car-mileage-unit">
+            <option value="km">Kilometers (km)</option>
+            <option value="mi">Miles (mi)</option>
+          </select>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-field">
@@ -761,6 +770,10 @@ body {
           <label class="form-label">Purchase Price</label>
           <input class="form-input" type="number" id="tire-purchase-price" placeholder="800">
         </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label" id="tire-purchase-km-label">Purchase Odometer (km)</label>
+        <input class="form-input" type="number" id="tire-purchase-km" placeholder="45000">
       </div>
       <div class="form-field">
         <label class="form-label">Notes</label>
@@ -894,6 +907,7 @@ function save() { localStorage.setItem('garage_db', JSON.stringify(db)); }
 function getCar() { return db.cars.find(c => c.id === currentCarId); }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function mileageUnit(car) { return car?.mileageUnit === 'mi' ? 'mi' : 'km'; }
 
 // ══════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -1089,10 +1103,10 @@ function renderSection(section) {
   else if (section === 'tires') renderTiresSection(car, records);
   else if (section === 'wipers') renderWipersSection(car, records);
   else if (section === 'fuel') renderFuelRecords(car, records);
-  else if (section === 'repairs') renderSimpleRecords('screen-repairs-content', records, 'repairs', 'No repair records yet.');
-  else if (section === 'parts') renderPartsRecords(records);
+  else if (section === 'repairs') renderSimpleRecords(car, 'screen-repairs-content', records, 'repairs', 'No repair records yet.');
+  else if (section === 'parts') renderPartsRecords(car, records);
   else if (section === 'expenses') renderExpensesRecords(car, records);
-  else if (section === 'accidents') renderAccidentRecords(records);
+  else if (section === 'accidents') renderAccidentRecords(car, records);
 }
 
 // — OIL —
@@ -1106,6 +1120,7 @@ function renderOilSection(car, records) {
   const info = car.oilInfo || {};
   const isImperial = car.oilUnit === 'imperial';
   const volUnit = isImperial ? 'qt' : 'L';
+  const mu = mileageUnit(car);
   const el = document.getElementById('screen-oil-content');
   el.innerHTML = `
     <div class="garage-tabs" style="margin-bottom:14px;">
@@ -1130,7 +1145,7 @@ function renderOilSection(car, records) {
     ${records.length ? records.slice().reverse().map(r => `
       <div class="record-card" style="margin-bottom:10px;">
         <div class="record-date">${formatDate(r.date)}</div>
-        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
         ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
         <div class="record-actions">
           <button class="record-btn" onclick="editRecord('oil','${r.id}')">Edit</button>
@@ -1165,6 +1180,34 @@ function saveOilInfo() {
 }
 
 // — TIRES —
+// Computes accumulated mileage per tire set. Each swap record marks "installed
+// tireType at odometer km". The distance between one swap and the next belongs
+// to the tire set that was mounted during that stretch (i.e. the OUTGOING set —
+// the type recorded on the earlier of the two swap events). A set's mileage
+// only counts from its own purchase odometer reading onward, so buying a fresh
+// set resets its tracked mileage to 0 even though old swap records remain.
+function computeTireMileage(car, records) {
+  const sorted = records
+    .filter(r => r.km !== '' && r.km != null && !isNaN(Number(r.km)))
+    .map(r => ({ km: Number(r.km), tireType: r.tireType, date: r.date }))
+    .sort((a,b) => (a.km - b.km) || (new Date(a.date) - new Date(b.date)));
+
+  const winterReset = Number(car.tiresWinter?.purchaseKm) || 0;
+  const allReset = Number(car.tiresAllSeason?.purchaseKm) || 0;
+  let winterKm = 0, allKm = 0;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i], next = sorted[i+1];
+    const dist = Math.max(0, next.km - cur.km);
+    if (cur.tireType === 'winter') {
+      if (cur.km >= winterReset) winterKm += dist;
+    } else {
+      if (cur.km >= allReset) allKm += dist;
+    }
+  }
+  return { winterKm, allKm };
+}
+
 function tiresTotal(car) {
   const setsTotal = (Number(car.tiresWinter?.price)||0) + (Number(car.tiresAllSeason?.price)||0);
   const recordsTotal = (car.records?.tires || []).reduce((s,r) => s + (Number(r.price)||0), 0);
@@ -1173,9 +1216,9 @@ function tiresTotal(car) {
 
 function renderTiresSection(car, records) {
   const wi = car.tiresWinter || {}; const al = car.tiresAllSeason || {};
-  const winterKm = records.filter(r=>r.tireType==='winter').reduce((s,r)=>s+(Number(r.km)||0),0);
-  const allKm = records.filter(r=>r.tireType==='allseason').reduce((s,r)=>s+(Number(r.km)||0),0);
+  const { winterKm, allKm } = computeTireMileage(car, records);
   const total = tiresTotal(car);
+  const mu = mileageUnit(car);
   const el = document.getElementById('screen-tires-content');
   el.innerHTML = `
     <div class="info-section">
@@ -1185,7 +1228,7 @@ function renderTiresSection(car, records) {
         <div class="info-field"><div class="info-field-label">Brand</div><div class="info-field-value">${wi.brand||'—'}</div></div>
         <div class="info-field"><div class="info-field-label">Purchased</div><div class="info-field-value">${wi.purchaseDate ? formatDate(wi.purchaseDate) : '—'}</div></div>
         <div class="info-field"><div class="info-field-label">Price</div><div class="info-field-value">${wi.price ? '$'+wi.price : '—'}</div></div>
-        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${winterKm.toLocaleString()} km</div></div>
+        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${winterKm.toLocaleString()} ${mu}</div></div>
         ${wi.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${wi.notes}</div></div>` : ''}
       </div>
     </div>
@@ -1196,18 +1239,21 @@ function renderTiresSection(car, records) {
         <div class="info-field"><div class="info-field-label">Brand</div><div class="info-field-value">${al.brand||'—'}</div></div>
         <div class="info-field"><div class="info-field-label">Purchased</div><div class="info-field-value">${al.purchaseDate ? formatDate(al.purchaseDate) : '—'}</div></div>
         <div class="info-field"><div class="info-field-label">Price</div><div class="info-field-value">${al.price ? '$'+al.price : '—'}</div></div>
-        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${allKm.toLocaleString()} km</div></div>
+        <div class="info-field full"><div class="info-field-label">Total Mileage</div><div class="info-field-value">${allKm.toLocaleString()} ${mu}</div></div>
         ${al.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${al.notes}</div></div>` : ''}
       </div>
     </div>
     <div class="mileage-total">Total tire cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin:-6px 0 14px;padding:0 2px;">
+      💡 Mileage for each set accrues between swaps — it's added to the set that was mounted during that stretch. Set "Purchase Odometer" above to reset a set's mileage to 0 when you buy a new one.
+    </div>
     <div class="section-header">
       <div class="section-header-title">Swap History (${records.length})</div>
     </div>
     ${records.length ? records.slice().reverse().map(r => `
       <div class="record-card" style="margin-bottom:10px;">
         <div class="record-date">${formatDate(r.date)}</div>
-        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
         <div class="${r.tireType==='winter' ? 'record-tag winter' : 'record-tag'}">${r.tireType==='winter'?'❄️ Winter':'☀️ All-Season'}</div>
         ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
         ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
@@ -1225,10 +1271,12 @@ function openTireInfoModal(type) {
   const car = getCar();
   const info = type === 'winter' ? (car.tiresWinter||{}) : (car.tiresAllSeason||{});
   document.getElementById('tires-info-modal-title').textContent = type === 'winter' ? '❄️ Winter Tire Info' : '☀️ All-Season Tire Info';
+  document.getElementById('tire-purchase-km-label').textContent = `Purchase Odometer (${mileageUnit(car)})`;
   document.getElementById('tire-size').value = info.size || '';
   document.getElementById('tire-brand').value = info.brand || '';
   document.getElementById('tire-purchase-date').value = info.purchaseDate || '';
   document.getElementById('tire-purchase-price').value = info.price || '';
+  document.getElementById('tire-purchase-km').value = info.purchaseKm || '';
   document.getElementById('tire-info-notes').value = info.notes || '';
   openModal('modal-tires-info');
 }
@@ -1240,6 +1288,7 @@ function saveTireInfo() {
     brand: document.getElementById('tire-brand').value,
     purchaseDate: document.getElementById('tire-purchase-date').value,
     price: document.getElementById('tire-purchase-price').value,
+    purchaseKm: document.getElementById('tire-purchase-km').value,
     notes: document.getElementById('tire-info-notes').value,
   };
   if (editingTireType === 'winter') car.tiresWinter = data;
@@ -1258,6 +1307,7 @@ function renderWipersSection(car, records) {
   const info = car.wipersInfo || {};
   const isImperial = car.wipersUnit === 'imperial';
   const u = isImperial ? '"' : 'mm';
+  const mu = mileageUnit(car);
   const el = document.getElementById('screen-wipers-content');
   el.innerHTML = `
     <div class="garage-tabs" style="margin-bottom:14px;">
@@ -1281,7 +1331,7 @@ function renderWipersSection(car, records) {
     ${records.length ? records.slice().reverse().map(r => `
       <div class="record-card" style="margin-bottom:10px;">
         <div class="record-date">${formatDate(r.date)}</div>
-        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+        ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
         ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
         <div class="record-actions">
           <button class="record-btn" onclick="editRecord('wipers','${r.id}')">Edit</button>
@@ -1318,8 +1368,9 @@ function saveWipersInfo() {
 }
 
 // — SIMPLE SECTIONS —
-function renderSimpleRecords(elId, records, section, emptyMsg) {
+function renderSimpleRecords(car, elId, records, section, emptyMsg) {
   const el = document.getElementById(elId);
+  const mu = mileageUnit(car);
   if (!records.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">📋</div><p>${emptyMsg}</p></div>`;
     return;
@@ -1330,7 +1381,7 @@ function renderSimpleRecords(elId, records, section, emptyMsg) {
     ${records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
-      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
       ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
       ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
       ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
@@ -1342,15 +1393,16 @@ function renderSimpleRecords(elId, records, section, emptyMsg) {
 }
 
 // — PARTS —
-function renderPartsRecords(records) {
+function renderPartsRecords(car, records) {
   const el = document.getElementById('screen-parts-content');
+  const mu = mileageUnit(car);
   if (!records.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">⚙️</div><p>No parts records yet</p></div>`; return;
   }
   el.innerHTML = records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
-      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
       ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
       ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
       ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
@@ -1429,6 +1481,7 @@ function renderExpensesRecords(car, records) {
   const el = document.getElementById('screen-expenses-content');
   const info = car.purchaseInfo || {};
   const total = expensesTotal(car);
+  const mu = mileageUnit(car);
   el.innerHTML = `
     <div class="info-section">
       <div class="info-section-title">
@@ -1445,7 +1498,7 @@ function renderExpensesRecords(car, records) {
     ${records.length ? records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
-      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
       ${r.name ? `<div class="record-name">${r.name}</div>` : ''}
       ${r.price ? `<div class="record-price">$${Number(r.price).toLocaleString()}</div>` : ''}
       ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
@@ -1477,15 +1530,16 @@ function saveExpensesInfo() {
 }
 
 // — ACCIDENTS —
-function renderAccidentRecords(records) {
+function renderAccidentRecords(car, records) {
   const el = document.getElementById('screen-accidents-content');
+  const mu = mileageUnit(car);
   if (!records.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">🚨</div><p>No accident records yet</p></div>`; return;
   }
   el.innerHTML = records.slice().reverse().map(r => `
     <div class="record-card" style="margin-bottom:10px;">
       <div class="record-date">${formatDate(r.date)}</div>
-      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} km</div>` : ''}
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
       ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
       ${r.photos && r.photos.length ? `
         <div class="accident-photos">
@@ -1560,7 +1614,7 @@ function openRecordModal(section, recordId) {
         <input class="form-input" type="date" id="rec-date" value="${rec?.date || today()}">
       </div>
       <div class="form-field">
-        <label class="form-label">Mileage (km)</label>
+        <label class="form-label">Mileage (${mileageUnit(car)})</label>
         <input class="form-input" type="number" id="rec-km" placeholder="50000" value="${rec?.km||''}">
       </div>
     </div>`;
@@ -1720,6 +1774,7 @@ function openAddCarModal() {
   document.getElementById('car-vin').value = '';
   document.getElementById('car-color').value = '';
   document.getElementById('car-fuel-type').value = 'gasoline';
+  document.getElementById('car-mileage-unit').value = 'km';
   document.getElementById('car-engine').value = '';
   document.getElementById('car-battery').value = '';
   document.getElementById('car-notes').value = '';
@@ -1739,6 +1794,7 @@ function openEditCarModal() {
   document.getElementById('car-vin').value = car.vin || '';
   document.getElementById('car-color').value = car.color || '';
   document.getElementById('car-fuel-type').value = car.fuelType || 'gasoline';
+  document.getElementById('car-mileage-unit').value = car.mileageUnit || 'km';
   document.getElementById('car-engine').value = car.engine || '';
   document.getElementById('car-battery').value = car.battery || '';
   document.getElementById('car-notes').value = car.notes || '';
@@ -1785,6 +1841,7 @@ function saveCar() {
     vin: document.getElementById('car-vin').value,
     color: document.getElementById('car-color').value,
     fuelType,
+    mileageUnit: document.getElementById('car-mileage-unit').value,
     engine: fuelType === 'electric' ? '' : document.getElementById('car-engine').value,
     battery: fuelType === 'electric' ? document.getElementById('car-battery').value : '',
     notes: document.getElementById('car-notes').value,
