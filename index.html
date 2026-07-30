@@ -678,10 +678,10 @@ body {
           </select>
         </div>
         <div class="form-field">
-          <label class="form-label">Mileage Unit</label>
-          <select class="form-select" id="car-mileage-unit">
-            <option value="km">Kilometers (km)</option>
-            <option value="mi">Miles (mi)</option>
+          <label class="form-label">Unit System</label>
+          <select class="form-select" id="car-unit-system" onchange="toggleUnitSystemLabel()">
+            <option value="metric">Metric (km, L, mm)</option>
+            <option value="imperial">Imperial (mi, gal, in)</option>
           </select>
         </div>
       </div>
@@ -702,6 +702,20 @@ body {
       <div class="form-field">
         <label class="form-label">VIN Number</label>
         <input class="form-input" type="text" id="car-vin" placeholder="1HGBH41JXMN109186" style="text-transform:uppercase; font-size:13px;">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Purchase Price ($)</label>
+          <input class="form-input" type="number" id="car-purchase-price" placeholder="15000">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Purchase Date</label>
+          <input class="form-input" type="date" id="car-purchase-date">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label" id="car-initial-odometer-label">Initial Odometer (km)</label>
+        <input class="form-input" type="number" id="car-initial-odometer" placeholder="0">
       </div>
       <div class="form-field">
         <label class="form-label">Notes</label>
@@ -815,34 +829,6 @@ body {
   </div>
 </div>
 
-<!-- EXPENSES / PURCHASE INFO MODAL -->
-<div class="modal-overlay" id="modal-expenses-info">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Vehicle Purchase Info</div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Purchase Price ($)</label>
-          <input class="form-input" type="number" id="expenses-purchase-price" placeholder="15000">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Purchase Date</label>
-          <input class="form-input" type="date" id="expenses-purchase-date">
-        </div>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Notes</label>
-        <textarea class="form-textarea" id="expenses-info-notes" placeholder="Dealer, financing, trade-in..."></textarea>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal('modal-expenses-info')">Cancel</button>
-      <button class="btn-primary" onclick="saveExpensesInfo()">Save</button>
-    </div>
-  </div>
-</div>
-
 <!-- RECORD MODAL (dynamic) -->
 <div class="modal-overlay" id="modal-record">
   <div class="modal-sheet">
@@ -907,7 +893,14 @@ function save() { localStorage.setItem('garage_db', JSON.stringify(db)); }
 function getCar() { return db.cars.find(c => c.id === currentCarId); }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
-function mileageUnit(car) { return car?.mileageUnit === 'mi' ? 'mi' : 'km'; }
+function unitSystem(car) {
+  if (car?.unitSystem) return car.unitSystem;
+  // legacy fallback for cars saved before unit system was unified
+  if (car?.fuelUnit === 'imperial' || car?.oilUnit === 'imperial' || car?.wipersUnit === 'imperial' || car?.mileageUnit === 'mi') return 'imperial';
+  return 'metric';
+}
+function isImperial(car) { return unitSystem(car) === 'imperial'; }
+function mileageUnit(car) { return isImperial(car) ? 'mi' : 'km'; }
 
 // ══════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -1110,23 +1103,12 @@ function renderSection(section) {
 }
 
 // — OIL —
-function setOilUnit(unit) {
-  const car = getCar(); if (!car) return;
-  car.oilUnit = unit;
-  save(); renderSection('oil');
-}
-
 function renderOilSection(car, records) {
   const info = car.oilInfo || {};
-  const isImperial = car.oilUnit === 'imperial';
-  const volUnit = isImperial ? 'qt' : 'L';
+  const volUnit = isImperial(car) ? 'qt' : 'L';
   const mu = mileageUnit(car);
   const el = document.getElementById('screen-oil-content');
   el.innerHTML = `
-    <div class="garage-tabs" style="margin-bottom:14px;">
-      <div class="garage-tab ${!isImperial?'active':''}" onclick="setOilUnit('metric')">Liters (L)</div>
-      <div class="garage-tab ${isImperial?'active':''}" onclick="setOilUnit('imperial')">Quarts (qt)</div>
-    </div>
     <div class="info-section">
       <div class="info-section-title">
         General Info
@@ -1158,9 +1140,9 @@ function renderOilSection(car, records) {
 
 function openOilInfoModal() {
   const car = getCar(); const info = car.oilInfo || {};
-  const isImperial = car.oilUnit === 'imperial';
-  document.getElementById('oil-volume-label').textContent = isImperial ? 'Volume (qt)' : 'Volume (L)';
-  document.getElementById('oil-volume').placeholder = isImperial ? '4.75' : '4.5';
+  const imperial = isImperial(car);
+  document.getElementById('oil-volume-label').textContent = imperial ? 'Volume (qt)' : 'Volume (L)';
+  document.getElementById('oil-volume').placeholder = imperial ? '4.75' : '4.5';
   document.getElementById('oil-type').value = info.type || '';
   document.getElementById('oil-volume').value = info.volume || '';
   document.getElementById('oil-plug').value = info.plug || '';
@@ -1297,23 +1279,12 @@ function saveTireInfo() {
 }
 
 // — WIPERS —
-function setWipersUnit(unit) {
-  const car = getCar(); if (!car) return;
-  car.wipersUnit = unit;
-  save(); renderSection('wipers');
-}
-
 function renderWipersSection(car, records) {
   const info = car.wipersInfo || {};
-  const isImperial = car.wipersUnit === 'imperial';
-  const u = isImperial ? '"' : 'mm';
+  const u = isImperial(car) ? '"' : 'mm';
   const mu = mileageUnit(car);
   const el = document.getElementById('screen-wipers-content');
   el.innerHTML = `
-    <div class="garage-tabs" style="margin-bottom:14px;">
-      <div class="garage-tab ${!isImperial?'active':''}" onclick="setWipersUnit('metric')">Millimeters (mm)</div>
-      <div class="garage-tab ${isImperial?'active':''}" onclick="setWipersUnit('imperial')">Inches (in)</div>
-    </div>
     <div class="info-section">
       <div class="info-section-title">
         Blade Sizes
@@ -1344,13 +1315,13 @@ function renderWipersSection(car, records) {
 
 function openWipersInfoModal() {
   const car = getCar(); const info = car.wipersInfo || {};
-  const isImperial = car.wipersUnit === 'imperial';
-  document.getElementById('wiper-driver-label').textContent = isImperial ? 'Driver (in)' : 'Driver (mm)';
-  document.getElementById('wiper-passenger-label').textContent = isImperial ? 'Passenger (in)' : 'Passenger (mm)';
-  document.getElementById('wiper-rear-label').textContent = isImperial ? 'Rear (in)' : 'Rear (mm)';
-  document.getElementById('wiper-driver').placeholder = isImperial ? '24' : '600';
-  document.getElementById('wiper-passenger').placeholder = isImperial ? '16' : '400';
-  document.getElementById('wiper-rear').placeholder = isImperial ? '12' : '300';
+  const imperial = isImperial(car);
+  document.getElementById('wiper-driver-label').textContent = imperial ? 'Driver (in)' : 'Driver (mm)';
+  document.getElementById('wiper-passenger-label').textContent = imperial ? 'Passenger (in)' : 'Passenger (mm)';
+  document.getElementById('wiper-rear-label').textContent = imperial ? 'Rear (in)' : 'Rear (mm)';
+  document.getElementById('wiper-driver').placeholder = imperial ? '24' : '600';
+  document.getElementById('wiper-passenger').placeholder = imperial ? '16' : '400';
+  document.getElementById('wiper-rear').placeholder = imperial ? '12' : '300';
   document.getElementById('wiper-driver').value = info.driver || '';
   document.getElementById('wiper-passenger').value = info.passenger || '';
   document.getElementById('wiper-rear').value = info.rear || '';
@@ -1420,38 +1391,24 @@ function calcFuelRecord(car, r) {
   const distance = Math.max(0, cur - prev);
   const rate = Number(r.consumption) || 0;   // L/100km  OR  mpg
   const price = Number(r.price) || 0;        // $/L      OR  $/gal
-  const isImperial = car.fuelUnit === 'imperial';
-  const volume = isImperial
+  const volume = isImperial(car)
     ? (rate > 0 ? distance / rate : 0)       // gallons = miles / mpg
     : (distance / 100 * rate);               // liters = km/100 * L/100km
   const cost = volume * price;
   return { distance, volume, cost };
 }
 
-function setFuelUnit(unit) {
-  const car = getCar(); if (!car) return;
-  car.fuelUnit = unit;
-  save(); renderSection('fuel');
-}
-
 function renderFuelRecords(car, records) {
   const el = document.getElementById('screen-fuel-content');
-  const isImperial = car.fuelUnit === 'imperial';
-  const distUnit = isImperial ? 'mi' : 'km';
-  const volUnit = isImperial ? 'gal' : 'L';
-  const priceUnit = isImperial ? '$/gal' : '$/L';
-
-  const unitToggle = `
-    <div class="garage-tabs" style="margin-bottom:14px;">
-      <div class="garage-tab ${!isImperial?'active':''}" onclick="setFuelUnit('metric')">L/100km · $/L</div>
-      <div class="garage-tab ${isImperial?'active':''}" onclick="setFuelUnit('imperial')">mi/gal · $/gal</div>
-    </div>`;
+  const imperial = isImperial(car);
+  const distUnit = imperial ? 'mi' : 'km';
+  const volUnit = imperial ? 'gal' : 'L';
 
   if (!records.length) {
-    el.innerHTML = unitToggle + `<div class="empty-state"><div class="icon" style="font-size:36px;">⛽</div><p>No fuel records yet</p></div>`; return;
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">⛽</div><p>No fuel records yet</p></div>`; return;
   }
   const total = records.reduce((s,r) => s + calcFuelRecord(car, r).cost, 0);
-  el.innerHTML = unitToggle + `
+  el.innerHTML = `
     <div class="mileage-total">Total fuel cost: <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
     ${records.slice().reverse().map(r => {
       const c = calcFuelRecord(car, r);
@@ -1471,28 +1428,33 @@ function renderFuelRecords(car, records) {
 }
 
 // — EXPENSES —
+function getPurchasePrice(car) { return car.purchasePrice ?? car.purchaseInfo?.price ?? ''; }
+function getPurchaseDate(car) { return car.purchaseDate ?? car.purchaseInfo?.date ?? ''; }
+
 function expensesTotal(car) {
   const recordsTotal = (car.records?.expenses || []).reduce((s,r) => s + (Number(r.price)||0), 0);
-  const purchasePrice = Number(car.purchaseInfo?.price) || 0;
+  const purchasePrice = Number(getPurchasePrice(car)) || 0;
   return recordsTotal + purchasePrice;
 }
 
 function renderExpensesRecords(car, records) {
   const el = document.getElementById('screen-expenses-content');
-  const info = car.purchaseInfo || {};
+  const price = getPurchasePrice(car);
+  const date = getPurchaseDate(car);
   const total = expensesTotal(car);
   const mu = mileageUnit(car);
   el.innerHTML = `
     <div class="info-section">
       <div class="info-section-title">
         🚗 Vehicle Purchase
-        <button class="info-edit-btn" onclick="openExpensesInfoModal()">Edit</button>
+        <button class="info-edit-btn" onclick="openEditCarModal()">Edit</button>
       </div>
       <div class="info-grid">
-        <div class="info-field"><div class="info-field-label">Purchase Price</div><div class="info-field-value">${info.price ? '$'+Number(info.price).toLocaleString() : '—'}</div></div>
-        <div class="info-field"><div class="info-field-label">Purchase Date</div><div class="info-field-value">${info.date ? formatDate(info.date) : '—'}</div></div>
-        ${info.notes ? `<div class="info-field full"><div class="info-field-label">Notes</div><div class="info-field-value">${info.notes}</div></div>` : ''}
+        <div class="info-field"><div class="info-field-label">Purchase Price</div><div class="info-field-value">${price ? '$'+Number(price).toLocaleString() : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Purchase Date</div><div class="info-field-value">${date ? formatDate(date) : '—'}</div></div>
+        <div class="info-field"><div class="info-field-label">Initial Odometer</div><div class="info-field-value">${car.initialOdometer ? Number(car.initialOdometer).toLocaleString()+' '+mu : '—'}</div></div>
       </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;">💡 Edit these in the vehicle's general info (✎ button).</div>
     </div>
     <div class="mileage-total">Total expenses (incl. purchase): <span>$${total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
     ${records.length ? records.slice().reverse().map(r => `
@@ -1509,24 +1471,6 @@ function renderExpensesRecords(car, records) {
     </div>`).join('') :
     `<div class="empty-state" style="padding:30px 0;"><div class="icon" style="font-size:36px;">💳</div><p>No expense records yet</p></div>`
     }`;
-}
-
-function openExpensesInfoModal() {
-  const car = getCar(); const info = car.purchaseInfo || {};
-  document.getElementById('expenses-purchase-price').value = info.price || '';
-  document.getElementById('expenses-purchase-date').value = info.date || '';
-  document.getElementById('expenses-info-notes').value = info.notes || '';
-  openModal('modal-expenses-info');
-}
-
-function saveExpensesInfo() {
-  const car = getCar();
-  car.purchaseInfo = {
-    price: document.getElementById('expenses-purchase-price').value,
-    date: document.getElementById('expenses-purchase-date').value,
-    notes: document.getElementById('expenses-info-notes').value,
-  };
-  save(); closeModal('modal-expenses-info'); renderSection('expenses'); showToast('Purchase info saved');
 }
 
 // — ACCIDENTS —
@@ -1573,14 +1517,16 @@ function openRecordModal(section, recordId) {
   let body;
 
   if (section === 'fuel') {
-    const isImperial = car.fuelUnit === 'imperial';
-    const distUnit = isImperial ? 'mi' : 'km';
-    const rateLabel = isImperial ? 'Avg Consumption (mpg)' : 'Avg Consumption (L/100km)';
-    const ratePlaceholder = isImperial ? '28' : '8.5';
-    const priceLabel = isImperial ? 'Fuel Price ($/gal)' : 'Fuel Price ($/L)';
-    const pricePlaceholder = isImperial ? '3.80' : '1.55';
+    const imperial = isImperial(car);
+    const distUnit = imperial ? 'mi' : 'km';
+    const rateLabel = imperial ? 'Avg Consumption (mpg)' : 'Avg Consumption (L/100km)';
+    const ratePlaceholder = imperial ? '28' : '8.5';
+    const priceLabel = imperial ? 'Fuel Price ($/gal)' : 'Fuel Price ($/L)';
+    const pricePlaceholder = imperial ? '3.80' : '1.55';
     const fuelRecords = (car.records.fuel || []).filter(r => r.id !== recordId);
-    const lastKm = fuelRecords.length ? Math.max(...fuelRecords.map(r => Number(r.km)||0)) : '';
+    // default "previous odometer" to the last fuel record's reading, or fall
+    // back to the car's initial odometer if this is the very first fill-up
+    const lastKm = fuelRecords.length ? Math.max(...fuelRecords.map(r => Number(r.km)||0)) : (car.initialOdometer || '');
     body = `
     <div class="form-row">
       <div class="form-field">
@@ -1765,6 +1711,11 @@ function toggleFuelTypeFields() {
   document.getElementById('car-battery-field').style.display = isElectric ? 'flex' : 'none';
 }
 
+function toggleUnitSystemLabel() {
+  const imperial = document.getElementById('car-unit-system').value === 'imperial';
+  document.getElementById('car-initial-odometer-label').textContent = `Initial Odometer (${imperial ? 'mi' : 'km'})`;
+}
+
 function openAddCarModal() {
   editingCarId = null; tempCarPhoto = null;
   document.getElementById('modal-car-title').textContent = 'Add Vehicle';
@@ -1774,11 +1725,15 @@ function openAddCarModal() {
   document.getElementById('car-vin').value = '';
   document.getElementById('car-color').value = '';
   document.getElementById('car-fuel-type').value = 'gasoline';
-  document.getElementById('car-mileage-unit').value = 'km';
+  document.getElementById('car-unit-system').value = 'metric';
   document.getElementById('car-engine').value = '';
   document.getElementById('car-battery').value = '';
+  document.getElementById('car-purchase-price').value = '';
+  document.getElementById('car-purchase-date').value = '';
+  document.getElementById('car-initial-odometer').value = '';
   document.getElementById('car-notes').value = '';
   toggleFuelTypeFields();
+  toggleUnitSystemLabel();
   document.getElementById('car-photo-preview').style.display = 'none';
   document.getElementById('car-photo-upload-area').style.display = 'flex';
   openModal('modal-car');
@@ -1794,11 +1749,15 @@ function openEditCarModal() {
   document.getElementById('car-vin').value = car.vin || '';
   document.getElementById('car-color').value = car.color || '';
   document.getElementById('car-fuel-type').value = car.fuelType || 'gasoline';
-  document.getElementById('car-mileage-unit').value = car.mileageUnit || 'km';
+  document.getElementById('car-unit-system').value = unitSystem(car);
   document.getElementById('car-engine').value = car.engine || '';
   document.getElementById('car-battery').value = car.battery || '';
+  document.getElementById('car-purchase-price').value = car.purchasePrice ?? car.purchaseInfo?.price ?? '';
+  document.getElementById('car-purchase-date').value = car.purchaseDate ?? car.purchaseInfo?.date ?? '';
+  document.getElementById('car-initial-odometer').value = car.initialOdometer || '';
   document.getElementById('car-notes').value = car.notes || '';
   toggleFuelTypeFields();
+  toggleUnitSystemLabel();
   if (car.photo) {
     document.getElementById('car-photo-preview-img').src = car.photo;
     document.getElementById('car-photo-preview').style.display = 'block';
@@ -1841,9 +1800,12 @@ function saveCar() {
     vin: document.getElementById('car-vin').value,
     color: document.getElementById('car-color').value,
     fuelType,
-    mileageUnit: document.getElementById('car-mileage-unit').value,
+    unitSystem: document.getElementById('car-unit-system').value,
     engine: fuelType === 'electric' ? '' : document.getElementById('car-engine').value,
     battery: fuelType === 'electric' ? document.getElementById('car-battery').value : '',
+    purchasePrice: document.getElementById('car-purchase-price').value,
+    purchaseDate: document.getElementById('car-purchase-date').value,
+    initialOdometer: document.getElementById('car-initial-odometer').value,
     notes: document.getElementById('car-notes').value,
     photo: tempCarPhoto,
   };
