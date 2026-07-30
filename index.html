@@ -28,11 +28,27 @@
   --safe-bot: env(safe-area-inset-bottom, 0px);
 }
 
+[data-theme="light"] {
+  --bg: #f7f5f1;
+  --bg2: #ffffff;
+  --bg3: #edeae3;
+  --card: #ffffff;
+  --border: #ddd8ce;
+  --accent: #b8842e;
+  --accent2: #9c6f24;
+  --text: #1c1a17;
+  --text2: #6f6a62;
+  --text3: #a19a8f;
+  --red: #c73e3e;
+  --green: #2f9e5c;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html { font-size: 16px; }
 body {
   font-family: 'DM Sans', sans-serif;
   background: var(--bg);
+  transition: background 0.2s, color 0.2s;
   color: var(--text);
   min-height: 100dvh;
   overflow-x: hidden;
@@ -543,6 +559,7 @@ body {
 <div class="screen active" id="screen-garage">
   <div class="topbar">
     <div class="topbar-title">🚗 My Garage</div>
+    <button class="sync-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button class="sync-btn" onclick="openIOModal()" title="Import / Export">💾</button>
     <button class="icon-btn" onclick="openAddCarModal()">+</button>
   </div>
@@ -611,6 +628,7 @@ body {
   <div class="topbar">
     <button class="back-btn" onclick="goBack('screen-car')">‹</button>
     <div class="topbar-title">📋 Maintenance Journal</div>
+    <button class="sync-btn" onclick="openManageServicesModal()" title="Manage service list">☰</button>
     <button class="icon-btn" onclick="openRecordModal('maintenance')">+</button>
   </div>
   <div class="content" id="screen-maintenance-content"></div>
@@ -854,6 +872,32 @@ body {
   </div>
 </div>
 
+<!-- MANAGE SERVICES MODAL -->
+<div class="modal-overlay" id="modal-manage-services">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Manage Service List</div>
+    <div class="modal-body">
+      <div class="form-field">
+        <div class="service-chips" id="manage-services-list"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field" style="flex:1;">
+          <label class="form-label">Add Service</label>
+          <input class="form-input" type="text" id="new-service-input" placeholder="e.g. Fuel Filter" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomService();}">
+        </div>
+      </div>
+      <div style="text-align:right; margin-top:4px;">
+        <button class="info-edit-btn" onclick="resetServiceList()">Reset to Default List</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-manage-services')">Close</button>
+      <button class="btn-primary" onclick="addCustomService()">Add Service</button>
+    </div>
+  </div>
+</div>
+
 <!-- RECORD MODAL (dynamic) -->
 <div class="modal-overlay" id="modal-record">
   <div class="modal-sheet">
@@ -905,6 +949,20 @@ body {
 // DATA LAYER
 // ══════════════════════════════════════════════════════════════
 let db = JSON.parse(localStorage.getItem('garage_db') || '{"cars":[]}');
+if (!db.settings) db.settings = {};
+
+function initTheme() {
+  const theme = db.settings.theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  db.settings.theme = (db.settings.theme === 'light') ? 'dark' : 'light';
+  save();
+  initTheme();
+}
 let currentCarId = null;
 let editingRecordId = null;
 let currentSection = null;
@@ -1455,11 +1513,21 @@ function renderFuelRecords(car, records) {
 }
 
 // — MAINTENANCE JOURNAL —
-const SERVICE_LIST = [
-  'Oil Change', 'Oil Filter', 'Air Filter', 'Cabin Filter', 'Brake Pads',
-  'Brake Fluid', 'Coolant Flush', 'Transmission Fluid', 'Spark Plugs',
-  'Battery', 'Tire Rotation', 'Wheel Alignment', 'Belts & Hoses', 'Inspection'
+const DEFAULT_SERVICE_LIST = [
+  'Pre-Delivery Inspection', 'Oil Change', 'Oil Filter', 'Air Filter', 'Cabin Air Filter',
+  'A/C Refrigerant Recharge', 'Brake Pads', 'Brake Fluid', 'Brake Inspection',
+  'Coolant Flush', 'Transmission Fluid', 'Spark Plugs', 'Battery',
+  'Tire Rotation', 'Tire Balance', 'Wheel Alignment', 'Wiper Blades',
+  'Belts & Hoses', 'Multi-Point Inspection', 'Drive Shafts & Boots', 'Reduction Gear Fluid'
 ];
+
+function getServiceList() {
+  if (!db.settings.serviceList || !db.settings.serviceList.length) {
+    db.settings.serviceList = [...DEFAULT_SERVICE_LIST];
+    save();
+  }
+  return db.settings.serviceList;
+}
 
 function renderMaintenanceRecords(car, records) {
   const el = document.getElementById('screen-maintenance-content');
@@ -1483,6 +1551,59 @@ function renderMaintenanceRecords(car, records) {
 
 function toggleServiceChip(el) {
   el.classList.toggle('active');
+}
+
+function openManageServicesModal() {
+  renderManageServicesList();
+  openModal('modal-manage-services');
+}
+
+function renderManageServicesList() {
+  const list = getServiceList();
+  const el = document.getElementById('manage-services-list');
+  el.innerHTML = list.length ? list.map(s => `
+    <div class="service-chip active" style="display:flex; align-items:center; gap:7px;">
+      ${s}<span onclick="removeService('${s.replace(/'/g,"\\'")}')" style="cursor:pointer; opacity:0.75; font-weight:700;">✕</span>
+    </div>`).join('') : `<div style="font-size:12px;color:var(--text2);">No services yet — add one below.</div>`;
+}
+
+function addCustomService() {
+  const input = document.getElementById('new-service-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const list = getServiceList();
+  if (!list.some(s => s.toLowerCase() === name.toLowerCase())) {
+    list.push(name);
+    save();
+  }
+  input.value = '';
+  renderManageServicesList();
+  refreshRecordServiceChips();
+}
+
+function removeService(name) {
+  db.settings.serviceList = getServiceList().filter(s => s !== name);
+  save();
+  renderManageServicesList();
+  refreshRecordServiceChips();
+}
+
+function resetServiceList() {
+  if (!confirm('Reset the service list to the default set? Custom entries you added will be removed.')) return;
+  db.settings.serviceList = [...DEFAULT_SERVICE_LIST];
+  save();
+  renderManageServicesList();
+  refreshRecordServiceChips();
+}
+
+// re-renders the chip picker inside the (already open) record modal, if present,
+// preserving whichever chips the user had already checked
+function refreshRecordServiceChips() {
+  const wrap = document.getElementById('rec-services-chips');
+  if (!wrap) return;
+  const selected = Array.from(wrap.querySelectorAll('.service-chip.active')).map(el => el.dataset.service);
+  const serviceList = getServiceList();
+  wrap.innerHTML = serviceList.map(s => `<div class="service-chip ${selected.includes(s)?'active':''}" data-service="${s}" onclick="toggleServiceChip(this)">${s}</div>`).join('');
 }
 
 // — EXPENSES —
@@ -1655,16 +1776,20 @@ function openRecordModal(section, recordId) {
 
   if (section === 'maintenance') {
     const selected = rec?.services || [];
+    const serviceList = getServiceList();
     body += `<div class="form-field">
       <label class="form-label">Place of Service</label>
       <input class="form-input" type="text" id="rec-place" placeholder="Joe's Auto Shop" value="${rec?.place||''}">
     </div>
     <div class="form-field">
-      <label class="form-label">Completed Services</label>
-      <div class="service-chips" id="rec-services-chips">
-        ${SERVICE_LIST.map(s => `<div class="service-chip ${selected.includes(s)?'active':''}" data-service="${s}" onclick="toggleServiceChip(this)">${s}</div>`).join('')}
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <label class="form-label" style="margin:0;">Completed Services</label>
+        <button type="button" class="info-edit-btn" onclick="openManageServicesModal()">Edit List</button>
       </div>
-      <input class="form-input" type="text" id="rec-services-custom" placeholder="Other services (comma separated)" style="margin-top:8px;" value="${(selected.filter(s=>!SERVICE_LIST.includes(s))||[]).join(', ')}">
+      <div class="service-chips" id="rec-services-chips" style="margin-top:6px;">
+        ${serviceList.map(s => `<div class="service-chip ${selected.includes(s)?'active':''}" data-service="${s}" onclick="toggleServiceChip(this)">${s}</div>`).join('')}
+      </div>
+      <input class="form-input" type="text" id="rec-services-custom" placeholder="Other services (comma separated)" style="margin-top:8px;" value="${(selected.filter(s=>!serviceList.includes(s))||[]).join(', ')}">
     </div>`;
   }
 
@@ -2102,7 +2227,7 @@ function doImport() {
   _pendingImport = null;
 
   if (mode === 'replace') {
-    db = { cars: data.cars };
+    db = { cars: data.cars, settings: data.settings || db.settings || {} };
   } else {
     // merge: add cars not already present (match by id or VIN)
     const newCars = data.cars.filter(ic =>
@@ -2112,6 +2237,7 @@ function doImport() {
   }
 
   save();
+  initTheme();
   closeModal('modal-import-confirm');
   renderGarage();
 
@@ -2128,6 +2254,7 @@ function doImport() {
 // ══════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════
+initTheme();
 renderGarage();
 </script>
 </body>
