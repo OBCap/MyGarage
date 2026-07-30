@@ -128,7 +128,7 @@ body {
   font-size: 56px;
   position: relative;
 }
-.car-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.car-card-img img { width: 100%; height: 100%; object-fit: contain; background: var(--bg3); cursor: zoom-in; }
 .car-card-img .placeholder { font-size: 56px; }
 .car-card-body { padding: 16px; }
 .car-card-name { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 1px; color: var(--text); }
@@ -203,7 +203,7 @@ body {
   background: var(--bg3);
   display: flex; align-items: center; justify-content: center;
 }
-.car-info-img img { width: 100%; height: 100%; object-fit: cover; }
+.car-info-img img { width: 100%; height: 100%; object-fit: contain; background: var(--bg3); cursor: zoom-in; }
 .car-info-body { padding: 16px; }
 .car-info-name { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 1.5px; }
 .car-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
@@ -1034,7 +1034,7 @@ function renderGarage() {
   grid.innerHTML = tabsHtml + list.map(car => `
     <div class="car-card ${car.archived?'archived':''}" onclick="openCar('${car.id}')">
       <div class="car-card-img">
-        ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<span class="placeholder">🚗</span>`}
+        ${car.photo ? `<img src="${car.photo}" alt="${car.model}" onclick="event.stopPropagation(); openLightbox('${car.photo}')">` : `<span class="placeholder">🚗</span>`}
       </div>
       <div class="car-card-actions">
         <div class="card-action-btn" onclick="event.stopPropagation(); toggleArchiveCar('${car.id}')" title="${car.archived?'Restore':'Archive'}">${car.archived?'♻️':'📦'}</div>
@@ -1099,7 +1099,7 @@ function renderCarScreen() {
 
   document.getElementById('car-info-panel').innerHTML = `
     <div class="car-info-img">
-      ${car.photo ? `<img src="${car.photo}" alt="${car.model}">` : `<div style="font-size:64px;">🚗</div>`}
+      ${car.photo ? `<img src="${car.photo}" alt="${car.model}" onclick="openLightbox('${car.photo}')">` : `<div style="font-size:64px;">🚗</div>`}
     </div>
     <div class="car-info-body">
       <div class="car-info-name">${car.year ? car.year + ' ' : ''}${car.model || 'Vehicle'} ${car.archived ? '<span class="car-badge archived-badge" style="vertical-align:middle;">📦 Archived</span>' : ''}</div>
