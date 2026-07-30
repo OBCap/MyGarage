@@ -520,6 +520,21 @@ body {
 }
 .cost-summary-val { font-family: 'Bebas Neue', cursive; font-size: 17px; color: var(--accent); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cost-summary-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+/* ── MAINTENANCE SERVICE CHIPS ── */
+.service-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.service-chip {
+  padding: 8px 13px; border-radius: 20px; background: var(--bg3);
+  border: 1px solid var(--border); color: var(--text2);
+  font-size: 12px; font-weight: 500; cursor: pointer; user-select: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.service-chip.active { background: rgba(232,184,75,0.14); border-color: var(--accent); color: var(--accent); }
+.service-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.service-tag {
+  padding: 4px 10px; border-radius: 12px; background: rgba(232,184,75,0.12);
+  border: 1px solid rgba(232,184,75,0.3); color: var(--accent); font-size: 11px; font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -589,6 +604,16 @@ body {
     <button class="icon-btn" onclick="openRecordModal('fuel')">+</button>
   </div>
   <div class="content" id="screen-fuel-content"></div>
+</div>
+
+<!-- SCREEN: MAINTENANCE JOURNAL -->
+<div class="screen" id="screen-maintenance">
+  <div class="topbar">
+    <button class="back-btn" onclick="goBack('screen-car')">‹</button>
+    <div class="topbar-title">📋 Maintenance Journal</div>
+    <button class="icon-btn" onclick="openRecordModal('maintenance')">+</button>
+  </div>
+  <div class="content" id="screen-maintenance-content"></div>
 </div>
 
 <!-- SCREEN: REPAIRS -->
@@ -1058,6 +1083,7 @@ function renderCarScreen() {
     {id:'tires', icon:'🔄', label:'Tires', sub:'Tire size & change history'},
     {id:'wipers', icon:'🌧', label:'Wipers', sub:'Wiper blade sizes & replacements'},
     {id:'fuel', icon:'⛽', label:'Fuel', sub:'Consumption & fuel cost tracking'},
+    {id:'maintenance', icon:'📋', label:'Maintenance Journal', sub:'Service visits, work done & notes'},
     {id:'repairs', icon:'🔧', label:'Repairs', sub:'Maintenance & repair log'},
     {id:'parts', icon:'⚙️', label:'Parts', sub:'Parts purchased & installed'},
     {id:'expenses', icon:'💳', label:'Expenses', sub:'Purchase price, insurance, etc.'},
@@ -1096,6 +1122,7 @@ function renderSection(section) {
   else if (section === 'tires') renderTiresSection(car, records);
   else if (section === 'wipers') renderWipersSection(car, records);
   else if (section === 'fuel') renderFuelRecords(car, records);
+  else if (section === 'maintenance') renderMaintenanceRecords(car, records);
   else if (section === 'repairs') renderSimpleRecords(car, 'screen-repairs-content', records, 'repairs', 'No repair records yet.');
   else if (section === 'parts') renderPartsRecords(car, records);
   else if (section === 'expenses') renderExpensesRecords(car, records);
@@ -1427,6 +1454,37 @@ function renderFuelRecords(car, records) {
     }).join('')}`;
 }
 
+// — MAINTENANCE JOURNAL —
+const SERVICE_LIST = [
+  'Oil Change', 'Oil Filter', 'Air Filter', 'Cabin Filter', 'Brake Pads',
+  'Brake Fluid', 'Coolant Flush', 'Transmission Fluid', 'Spark Plugs',
+  'Battery', 'Tire Rotation', 'Wheel Alignment', 'Belts & Hoses', 'Inspection'
+];
+
+function renderMaintenanceRecords(car, records) {
+  const el = document.getElementById('screen-maintenance-content');
+  const mu = mileageUnit(car);
+  if (!records.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon" style="font-size:36px;">📋</div><p>No maintenance visits logged yet</p></div>`; return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => `
+    <div class="record-card" style="margin-bottom:10px;">
+      <div class="record-date">${formatDate(r.date)}</div>
+      ${r.km ? `<div class="record-km">📍 ${Number(r.km).toLocaleString()} ${mu}</div>` : ''}
+      ${r.place ? `<div class="record-name">🔧 ${r.place}</div>` : ''}
+      ${r.services && r.services.length ? `<div class="service-tags">${r.services.map(s => `<span class="service-tag">${s}</span>`).join('')}</div>` : ''}
+      ${r.notes ? `<div class="record-notes">${r.notes}</div>` : ''}
+      <div class="record-actions">
+        <button class="record-btn" onclick="editRecord('maintenance','${r.id}')">Edit</button>
+        <button class="record-btn del" onclick="deleteRecord('maintenance','${r.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function toggleServiceChip(el) {
+  el.classList.toggle('active');
+}
+
 // — EXPENSES —
 function getPurchasePrice(car) { return car.purchasePrice ?? car.purchaseInfo?.price ?? ''; }
 function getPurchaseDate(car) { return car.purchaseDate ?? car.purchaseInfo?.date ?? ''; }
@@ -1501,7 +1559,7 @@ function renderAccidentRecords(car, records) {
 // ══════════════════════════════════════════════════════════════
 const sectionTitles = {
   oil: '🛢 Oil Change', tires: '🔄 Tire Swap', wipers: '🌧 Wiper Replacement',
-  fuel: '⛽ Fuel Fill-up', repairs: '🔧 Repair', parts: '⚙️ Part', expenses: '💳 Expense', accidents: '🚨 Accident'
+  fuel: '⛽ Fuel Fill-up', maintenance: '📋 Maintenance Visit', repairs: '🔧 Repair', parts: '⚙️ Part', expenses: '💳 Expense', accidents: '🚨 Accident'
 };
 
 function openRecordModal(section, recordId) {
@@ -1595,6 +1653,21 @@ function openRecordModal(section, recordId) {
     </div>`;
   }
 
+  if (section === 'maintenance') {
+    const selected = rec?.services || [];
+    body += `<div class="form-field">
+      <label class="form-label">Place of Service</label>
+      <input class="form-input" type="text" id="rec-place" placeholder="Joe's Auto Shop" value="${rec?.place||''}">
+    </div>
+    <div class="form-field">
+      <label class="form-label">Completed Services</label>
+      <div class="service-chips" id="rec-services-chips">
+        ${SERVICE_LIST.map(s => `<div class="service-chip ${selected.includes(s)?'active':''}" data-service="${s}" onclick="toggleServiceChip(this)">${s}</div>`).join('')}
+      </div>
+      <input class="form-input" type="text" id="rec-services-custom" placeholder="Other services (comma separated)" style="margin-top:8px;" value="${(selected.filter(s=>!SERVICE_LIST.includes(s))||[]).join(', ')}">
+    </div>`;
+  }
+
   body += `<div class="form-field">
     <label class="form-label">Notes</label>
     <textarea class="form-textarea" id="rec-notes" placeholder="Details...">${rec?.notes||''}</textarea>
@@ -1674,6 +1747,12 @@ function saveRecord() {
     rec.prevKm = document.getElementById('rec-prev-km')?.value || '';
     rec.consumption = document.getElementById('rec-consumption')?.value || '';
     rec.price = document.getElementById('rec-price')?.value || '';
+  }
+  if (currentSection === 'maintenance') {
+    rec.place = document.getElementById('rec-place')?.value || '';
+    const checked = Array.from(document.querySelectorAll('#rec-services-chips .service-chip.active')).map(el => el.dataset.service);
+    const custom = (document.getElementById('rec-services-custom')?.value || '').split(',').map(s=>s.trim()).filter(Boolean);
+    rec.services = [...checked, ...custom];
   }
   if (currentSection === 'accidents') rec.photos = [...tempAccidentPhotos];
 
